@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>CapaGap — demo.exe — Static and dynamic capability coverage</title>
+<link rel="icon" href="data:,">
+<style>:root {
+  color-scheme: light;
+  --surface: #fff;
+  --subtle: #f6f7f9;
+  --selected: #edf3fb;
+  --line: #d7dde5;
+  --line-strong: #9aafc8;
+  --ink: #1e2733;
+  --muted: #566170;
+  --accent: #1b579f;
+  --accent-hover: #134579;
+  --observed: #227342;
+  --warning: #8a590d;
+  --focus: #2867b5;
+  --radius: 4px;
+  font: 16px/1.5 "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--surface); color: var(--ink); }
+::selection { background: #d8e7fa; color: var(--ink); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button, summary { cursor: pointer; }
+button { background: none; }
+button:disabled { cursor: default; opacity: .5; }
+button, a, input, select, summary { transition: background-color 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out; }
+a { color: var(--accent); text-underline-offset: 3px; }
+a:hover { color: var(--accent-hover); }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+input, textarea { caret-color: var(--accent); }
+[hidden] { display: none !important; }
+svg { flex-shrink: 0; }
+.icon { width: 20px; height: 20px; vertical-align: middle; }
+code, .score { font-family: ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, monospace; font-size: .93em; font-variant-numeric: tabular-nums; }
+h1, h2, h3, p { margin: 0; }
+h2 { font-size: 18px; font-weight: 600; }
+h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+h3 .muted { font-weight: 400; }
+.muted { color: var(--muted); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.print-only { display: none; }
+.skip-link { position: fixed; top: -80px; left: 20px; z-index: 10; padding: 10px 16px; background: var(--surface); border: 1px solid var(--accent); }
+.skip-link:focus { top: 10px; }
+.appbar { min-height: 68px; padding: 14px 22px; display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 24px; min-width: 0; }
+.wordmark { flex-shrink: 0; font-size: 30px; font-weight: 600; letter-spacing: -.03em; line-height: 1.2; }
+.wordmark > span { color: var(--accent); }
+.sample-name { font-size: 18px; padding-left: 22px; border-left: 1px solid var(--line); overflow-wrap: anywhere; }
+.button { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 38px; padding: 7px 13px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); font-size: 15px; }
+.button:hover { background: var(--subtle); border-color: var(--line-strong); }
+.appbar > .button { flex-shrink: 0; }
+.sample-strip { min-height: 70px; padding: 18px 28px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 16px 28px; }
+.sample-metadata, .coverage-summary { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.sample-metadata { min-width: 0; }
+.sample-metadata > span, .coverage-summary > span, .coverage-summary > a { padding-right: 18px; border-right: 1px solid var(--line); }
+.sample-metadata > :last-child, .coverage-summary > :last-child { padding-right: 0; border: 0; }
+.sample-metadata span { overflow-wrap: anywhere; }
+.sample-metadata small { margin-right: 8px; color: var(--muted); font-size: 13px; }
+.example-label { color: var(--accent); font-weight: 500; }
+.coverage-summary { font-variant-numeric: tabular-nums; }
+.coverage-summary strong { font-weight: 600; }
+.coverage-summary > a { text-decoration: none; color: var(--ink); }
+.coverage-summary > a:hover { color: var(--accent); text-decoration: underline; }
+.coverage-summary .warning-link { color: var(--warning); display: inline-flex; gap: 6px; align-items: center; }
+.workspace-toolbar { min-height: 70px; margin: 0 22px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--line); }
+.workspace-toolbar nav { display: flex; align-self: stretch; align-items: stretch; gap: 16px; }
+.workspace-toolbar nav a { display: flex; align-items: center; padding: 16px 10px; border-bottom: 2px solid transparent; text-decoration: none; color: var(--ink); }
+.workspace-toolbar nav a:hover { background: var(--subtle); }
+.workspace-toolbar nav a.active { color: var(--accent); border-color: var(--accent); font-weight: 500; }
+.filters { display: flex; align-items: center; gap: 14px; }
+.search-field { display: flex; align-items: center; gap: 10px; width: 320px; min-height: 40px; border: 1px solid var(--line); border-radius: var(--radius); padding: 0 12px; }
+.search-field > .icon { color: var(--muted); width: 18px; height: 18px; }
+.search-field:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+.search-field input { width: 100%; min-width: 0; padding: 8px 0; border: 0; background: transparent; outline: none; }
+input::placeholder { color: var(--muted); opacity: 1; }
+.state-filter select { min-height: 40px; width: 180px; padding: 7px 32px 7px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.matrix-section { margin: 0 22px; scroll-margin-top: 18px; }
+.matrix-section:focus { outline: none; }
+.groupbar { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; min-height: 74px; padding: 16px 0; }
+.group-button { display: inline-flex; align-items: center; gap: 20px; min-height: 39px; padding: 7px 16px; border: 1px solid var(--line); border-radius: var(--radius); font-size: 15px; }
+.group-button span { font-variant-numeric: tabular-nums; }
+.group-button:hover { background: var(--subtle); border-color: var(--line-strong); }
+.group-button[aria-pressed="true"] { color: #fff; background: var(--accent); border-color: var(--accent); }
+.group-description { color: var(--muted); font-size: 14px; padding: 0 0 14px; }
+.matrix-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); }
+.matrix { width: 100%; border-collapse: collapse; text-align: left; table-layout: auto; }
+.matrix th, .matrix td { padding: 13px 22px; border-right: 1px solid var(--line); overflow-wrap: anywhere; }
+.matrix tr > :last-child { border-right: 0; }
+.matrix > thead th { font-weight: 500; background: var(--subtle); height: 75px; padding-top: 5px; padding-bottom: 5px; vertical-align: middle; }
+.matrix > thead .run-heading { min-width: 118px; text-align: center; max-width: 220px; }
+.run-heading > span { display: block; font-size: 14px; font-weight: 400; }
+.run-heading, .run-cell { font-variant-numeric: tabular-nums; }
+.matrix .expand-cell { width: 64px; min-width: 56px; padding: 7px 8px; text-align: center; }
+.name-heading, .name-cell { min-width: 220px; }
+.namespace-heading, .namespace-cell { min-width: 190px; }
+.state-heading, .state-cell { min-width: 134px; }
+.attack-heading, .attack-cell { min-width: 106px; }
+.identifier-token { display: inline-block; white-space: nowrap; }
+.priority-heading, .priority-cell { min-width: 100px; }
+.capability-row { height: 54px; border-top: 1px solid var(--line); cursor: pointer; }
+.capability-row th { font-weight: 400; }
+.capability-row:hover { background: var(--subtle); }
+.capability-row.selected { background: var(--selected); border-top-color: var(--line-strong); }
+.capability-row.selected > * { border-right-color: #ccd9e9; }
+.capability-row.selected .name-cell { font-weight: 500; }
+.row-toggle { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border: 0; border-radius: var(--radius); }
+.row-toggle:hover { background: #dce7f6; }
+.row-toggle .icon { width: 18px; height: 18px; transition: transform 150ms ease-out; }
+.row-toggle[aria-expanded="true"] .icon { transform: rotate(90deg); }
+.run-cell { text-align: center; }
+.observation { display: inline-flex; align-items: center; }
+.observation .icon { width: 24px; height: 24px; }
+.observed { color: var(--observed); }
+.missing, .neutral { color: var(--muted); }
+.mixed { color: var(--warning); }
+.priority-cell { text-transform: lowercase; white-space: nowrap; }
+.priority-cell .score { margin-left: 8px; }
+.mobile-namespace { display: none; }
+.details-row > td { padding: 0; background: var(--subtle); border-bottom: 1px solid var(--line-strong); }
+.finding-detail { display: grid; grid-template-columns: minmax(220px,1.3fr) minmax(205px,.85fr) minmax(240px,1.45fr); gap: 0; min-height: 212px; padding: 20px 30px 20px 84px; }
+.finding-detail > div { min-width: 0; }
+.evidence-column { padding-right: 46px; }
+.rule-column { padding: 0 32px; border-left: 1px solid var(--line); }
+.action-column { padding-left: 32px; border-left: 1px solid var(--line); }
+.action-column > p { max-width: 70ch; line-height: 1.6; }
+.action-column > p + p { margin-top: 12px; }
+.evidence-source + .evidence-source { margin-top: 22px; }
+.evidence-table { width: 100%; border-collapse: collapse; font-size: 16px; text-align: left; }
+.evidence-table th, .evidence-table td { height: auto; padding: 3px 0; border: 0; border-bottom: 1px solid var(--line); font-weight: 400; background: transparent; }
+.evidence-table th { color: var(--muted); }
+.evidence-table td:last-child { width: 30px; }
+.finding-detail code { font-size: 1em; }
+.evidence-table code { overflow-wrap: anywhere; }
+.icon-button { display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; min-width: 28px; height: 28px; border: 0; border-radius: var(--radius); color: var(--muted); }
+.icon-button .icon { width: 17px; height: 17px; }
+.icon-button:hover { color: var(--accent); background: #e4ebf4; }
+.image-base { display: flex; align-items: center; gap: 16px; margin-top: 9px; font-size: 16px; flex-wrap: wrap; }
+.image-base .copy-button { margin-left: auto; }
+.evidence-note { font-size: 13px; margin-top: 12px; }
+.key-values { margin: 0; }
+.key-values > div { display: grid; grid-template-columns: minmax(95px,.9fr) minmax(0,1.2fr); gap: 12px; padding: 3px 0; }
+.key-values dt, .key-values dd { margin: 0; overflow-wrap: anywhere; }
+.rule-column .key-values > div { grid-template-columns: minmax(7.25rem,max-content) minmax(0,1fr); }
+.identifiers { border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+.scopes { padding-top: 6px; font-size: 16px; }
+.reason-details { margin-top: 10px; font-size: 13px; }
+.reason-details summary { color: var(--muted); width: fit-content; }
+.reason-details p, .reason-details ul { margin-top: 10px; }
+.reason-details ul { padding-left: 18px; }
+.reason-details li + li { margin-top: 5px; }
+.matrix-footer { display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 62px; padding: 14px 0; font-size: 13px; }
+.legend { display: flex; align-items: center; gap: 18px; margin-left: auto; }
+.legend > span { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+.legend > span > span { color: var(--ink); }
+.boundary { color: var(--muted); padding-left: 18px; border-left: 1px solid var(--line); }
+.report-sections { margin: 0 22px 26px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.report-section + .report-section { border-top: 1px solid var(--line); }
+.report-section { scroll-margin-top: 20px; }
+.report-section > summary { display: flex; align-items: center; gap: 16px; padding: 13px 20px; list-style: none; min-height: 49px; }
+.report-section > summary::-webkit-details-marker { display: none; }
+.report-section > summary .icon { width: 17px; height: 17px; }
+.report-section[open] > summary .icon { transform: rotate(90deg); }
+.report-section > summary:hover { background: var(--subtle); }
+.report-section[open] > summary { background: var(--subtle); font-weight: 500; border-bottom: 1px solid var(--line); }
+.section-content { padding: 22px 26px; }
+.section-intro { color: var(--muted); max-width: 80ch; margin-bottom: 20px; }
+.section-content p + p { margin-top: 12px; }
+.section-content ul { margin: 0 0 14px; padding-left: 20px; }
+.horizontal-scroll { overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
+.data-table th, .data-table td { padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.data-table thead th { font-weight: 500; color: var(--muted); }
+.data-table tbody th { font-weight: 500; }
+.data-table .icon-button { margin-left: 9px; }
+.data-table code { overflow-wrap: anywhere; }
+.text-button { border: 0; text-align: left; color: var(--accent); padding: 4px 0; text-underline-offset: 3px; }
+.text-button:hover { text-decoration: underline; }
+.hotspot-links > .text-button { display: block; }
+.warning-list { color: var(--warning); line-height: 1.65; }
+.warning-list li + li { margin-top: 7px; }
+.input-documents { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,330px),1fr)); gap: 32px; margin-bottom: 26px; }
+.input-document { min-width: 0; }
+.input-document > h3 { margin-bottom: 14px; }
+.input-document .key-values { font-size: 13px; }
+.hash-line { display: flex; align-items: start; flex-wrap: wrap; gap: 9px; font-size: 13px; margin-bottom: 12px; }
+.hash-line > code { overflow-wrap: anywhere; flex-basis: 100%; order: 3; }
+.empty-state { text-align: center; padding: 48px 20px; border: 1px solid var(--line); border-top: 0; }
+.empty-state p { margin: 10px auto 20px; color: var(--muted); max-width: 60ch; }
+.no-script { padding: 15px 0; }
+.toast { position: fixed; bottom: 22px; right: 22px; max-width: min(360px,calc(100% - 44px)); padding: 12px 18px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface); color: var(--ink); z-index: 5; }
+.copy-dialog { border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); max-width: 600px; width: calc(100% - 40px); padding: 24px; }
+.copy-dialog::backdrop { background: rgb(20 30 45 / 28%); }
+.dialog-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.copy-dialog p { margin-bottom: 16px; color: var(--muted); }
+.copy-dialog textarea { width: 100%; min-height: 120px; resize: vertical; padding: 12px; border: 1px solid var(--line); background: var(--subtle); border-radius: var(--radius); }
+
+@media (max-width: 1250px) {
+  .sample-strip { flex-wrap: wrap; gap: 14px; }
+  .coverage-summary { font-size: 14px; }
+  .namespace-cell, .namespace-heading { display: none; }
+  .mobile-namespace { display: block; color: var(--muted); font-size: 12px; font-weight: 400; margin-top: 4px; overflow-wrap: anywhere; }
+  .matrix th, .matrix td { padding-left: 16px; padding-right: 16px; }
+  .matrix .expand-cell { width: 52px; min-width: 46px; padding-left: 6px; padding-right: 6px; }
+  .details-row > td { padding: 0; }
+  .finding-detail { padding-left: 56px; padding-right: 22px; grid-template-columns: minmax(190px,1fr) minmax(170px,.85fr) minmax(210px,1.3fr); }
+  .evidence-column { padding-right: 24px; }
+  .rule-column { padding: 0 24px; }
+  .action-column { padding-left: 24px; }
+  .search-field { width: 260px; }
+  .workspace-toolbar nav { gap: 8px; }
+  .matrix-footer { flex-wrap: wrap; gap: 10px 20px; }
+}
+@media (max-width: 960px) {
+  .workspace-toolbar { flex-wrap: wrap; padding-bottom: 14px; gap: 10px; }
+  .workspace-toolbar nav { width: 100%; min-height: 56px; }
+  .filters { width: 100%; }
+  .search-field { width: auto; flex: 1; }
+  .matrix th, .matrix td { padding-left: 12px; padding-right: 12px; }
+  .details-row > td { padding: 0; }
+  .matrix > thead .run-heading { min-width: 100px; }
+  .matrix .name-heading, .matrix .name-cell { min-width: 210px; }
+  .finding-detail { grid-template-columns: 1.15fr 1fr; gap: 22px 0; padding: 24px; }
+  .action-column { border: 0; border-top: 1px solid var(--line); padding: 18px 0 0; grid-column: 1 / -1; }
+  .boundary { padding-left: 0; border: 0; }
+  .legend { margin-left: 0; }
+}
+@media (max-width: 600px) {
+  :root { font-size: 14px; }
+  h3 { font-size: 15px; margin-bottom: 12px; }
+  .finding-detail code { font-size: .93em; }
+  .identifier-token { white-space: normal; overflow-wrap: anywhere; }
+  .image-base { font-size: 14px; }
+  .identifiers { padding-bottom: 10px; }
+  .scopes { padding-top: 9px; font-size: 14px; }
+  .reason-details { margin-top: 14px; }
+  .appbar { min-height: 64px; padding: 13px 16px; gap: 12px; }
+  .wordmark { font-size: 24px; }
+  .brand { gap: 10px; }
+  .sample-name { display: none; }
+  .button { font-size: 13px; min-height: 40px; }
+  .sample-strip { padding: 16px; }
+  .sample-metadata, .coverage-summary { gap: 8px 14px; font-size: 13px; }
+  .sample-metadata > span, .coverage-summary > span, .coverage-summary > a { padding-right: 12px; }
+  .sample-metadata small { margin-right: 4px; }
+  .workspace-toolbar { margin: 0 16px; }
+  .workspace-toolbar nav { justify-content: space-between; gap: 0; min-height: 54px; }
+  .workspace-toolbar nav a { padding: 12px 5px; font-size: 13px; }
+  .filters { gap: 8px; }
+  .search-field { min-height: 42px; padding: 0 9px; gap: 7px; }
+  .search-field input { font-size: 14px; }
+  .state-filter select { width: 133px; padding-right: 20px; font-size: 13px; min-height: 42px; }
+  .matrix-section { margin: 0 16px; }
+  .groupbar { gap: 8px; min-height: 66px; }
+  .group-button { padding: 8px 10px; gap: 10px; font-size: 13px; min-height: 42px; }
+  .matrix-scroll { border: 0; border-bottom: 1px solid var(--line); overflow: visible; }
+  .matrix { display: block; }
+  .matrix > thead { display: none; }
+  .matrix-group { display: block; border: 1px solid var(--line); border-bottom: 0; }
+  .capability-row { display: grid; grid-template-columns: 42px minmax(0,1fr) minmax(0,1fr); height: auto; padding: 8px 10px 12px 0; gap: 6px 0; border: 0; }
+  .matrix .capability-row > * { padding: 4px 8px; min-width: 0; border: 0; }
+  .matrix .capability-row .expand-cell { grid-column: 1; grid-row: 1; padding: 0; min-width: 42px; width: auto; }
+  .matrix .name-cell { grid-column: 2 / -1; font-size: 14px; min-width: 0; align-self: center; text-align: left; }
+  .matrix .namespace-cell { display: none; }
+  .state-cell { grid-column: 2 / -1; font-size: 12px; color: var(--muted); }
+  .run-cell, .attack-cell, .priority-cell { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; text-align: left; white-space: normal; }
+  .run-cell { grid-column: 2 / -1; }
+  .run-cell::before, .attack-cell::before, .priority-cell::before { content: attr(data-label); color: var(--muted); overflow-wrap: anywhere; }
+  .observation::after { margin-left: 7px; content: ""; }
+  .run-cell.observed .observation::after { content: "Observed"; }
+  .run-cell.missing .observation::after { content: "Missing"; }
+  .run-cell.neutral .observation::after { content: "Not comparable"; }
+  .observation .icon { width: 18px; height: 18px; }
+  .attack-cell { grid-column: 2; flex-wrap: wrap; justify-content: flex-start; gap: 4px 8px; }
+  .priority-cell { grid-column: 3; justify-content: flex-end; gap: 8px; }
+  .priority-cell .score { margin: 0; }
+  .details-row, .details-row > td { display: block; width: 100%; }
+  .finding-detail { display: block; min-height: 0; padding: 20px; border-top: 1px solid var(--line-strong); }
+  .evidence-column, .rule-column, .action-column { padding: 0; border: 0; }
+  .rule-column, .action-column { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+  .evidence-table { font-size: 13px; }
+  .evidence-table th, .evidence-table td { padding: 8px 0; }
+  .icon-button { min-width: 32px; height: 32px; }
+  .key-values > div { grid-template-columns: 1fr 1fr; padding: 7px 0; }
+  .rule-column .key-values > div { grid-template-columns: 1fr 1fr; }
+  .matrix-footer { padding: 16px 0; font-size: 12px; gap: 12px; }
+  .legend { width: 100%; justify-content: space-between; gap: 8px; }
+  .legend > span { gap: 6px; }
+  .legend .icon { width: 18px; height: 18px; }
+  .boundary { line-height: 1.5; }
+  .report-sections { margin: 0 16px 24px; }
+  .report-section > summary { min-height: 50px; padding: 13px 16px; gap: 12px; }
+  .section-content { padding: 18px 16px; }
+  .data-table { min-width: 520px; font-size: 13px; }
+  .input-document .key-values > div { display: block; }
+  .input-document dt { color: var(--muted); margin-bottom: 4px; }
+  .input-documents { gap: 24px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+}
+@media print {
+  :root { font-size: 10pt; }
+  .js-only, .row-toggle, .filters, .workspace-toolbar, .groupbar, .skip-link, .copy-dialog, .toast { display: none !important; }
+  .print-only { display: inline; }
+  .matrix-group[hidden] { display: table-row-group !important; }
+  .details-row[hidden] { display: table-row !important; }
+  .matrix-scroll, .horizontal-scroll { overflow: visible; border-radius: 0; }
+  .matrix { min-width: 0; }
+  .matrix th, .matrix td { min-width: 0; padding: 7px; }
+  .namespace-cell, .namespace-heading { display: none; }
+  .mobile-namespace { display: block; }
+  .finding-detail { min-height: 0; padding: 16px; font-size: 9pt; }
+  .matrix-group, .report-section { break-inside: avoid; }
+  .empty-state { display: none !important; }
+  .appbar { padding: 0 0 14px; }
+  .sample-strip { padding: 14px 0; }
+  .matrix-section, .report-sections { margin-left: 0; margin-right: 0; }
+}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#capability-matrix">Skip to capability matrix</a>
+<header class="appbar">
+  <div class="brand"><span class="wordmark"><span>Capa</span>Gap</span>
+    <span class="sample-name">demo.exe</span></div>
+  <button class="button js-only" type="button" data-export><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3v12m-5-5 5 5 5-5M4 15v5h16v-5"/></svg>Export JSON</button>
+</header>
+<section class="sample-strip" aria-label="Sample and coverage summary">
+  <div class="sample-metadata"><span class="example-label">Synthetic example</span>
+    <span><small>File</small> demo.exe</span>
+    <span><small>Arch</small> amd64</span>
+    <span><small>OS</small> windows</span>
+  </div>
+  <div class="coverage-summary">
+    <span><strong>50%</strong> observed coverage</span>
+    <span><strong>2 / 4</strong> comparable</span>
+    <span><strong>1</strong> run</span>
+    <a href="#input-details" data-open-section>High input confidence</a>
+    
+  </div>
+</section>
+<main>
+<h1 class="sr-only">Static and dynamic capability coverage</h1>
+<div class="workspace-toolbar">
+  <nav aria-label="Report sections">
+    <a class="active" href="#capability-matrix" data-matrix-link>Matrix</a>
+    <a href="#run-conditions" data-open-section>Run details</a>
+    <a href="#evidence-hotspots" data-open-section>Evidence hotspots</a>
+  </nav>
+  <div class="filters js-only">
+    <label class="search-field"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg>
+      <span class="sr-only">Filter capabilities</span>
+      <input type="search" data-search placeholder="Filter capabilities…" autocomplete="off">
+    </label>
+    <label class="state-filter"><span class="sr-only">Observation state</span>
+      <select data-state-filter><option value="">All states</option><option value="unobserved">Unobserved</option><option value="observed">Observed</option><option value="dynamic-only">Runtime-only</option><option value="static-only">Static-only</option></select>
+    </label>
+  </div>
+</div>
+<section class="matrix-section" id="capability-matrix" aria-label="Capability matrix" tabindex="-1">
+  <div class="groupbar js-only" role="group" aria-label="Capability views"><button type="button" data-group-button="comparable" aria-pressed="true" class="group-button">Comparable<span>4</span></button><button type="button" data-group-button="runtime" aria-pressed="false" class="group-button">Runtime-only<span>1</span></button><button type="button" data-group-button="excluded" aria-pressed="false" class="group-button">Excluded<span>1</span></button></div>
+  <noscript><p class="no-script">All findings and evidence are shown. Enable JavaScript for filtering, copying, and export.</p>
+  <style>.matrix-group[hidden]{display:table-row-group!important}.details-row[hidden]{display:table-row!important}.js-only,.row-toggle{display:none!important}.print-only{display:inline!important}</style></noscript>
+  <p class="group-description" data-group-description hidden></p>
+  <div class="matrix-scroll" role="region" aria-label="Scrollable capability matrix" tabindex="0">
+    <table class="matrix">
+      <caption class="sr-only">Capability matrix across dynamic</caption>
+      <thead><tr>
+        <th scope="col" class="expand-cell"><span class="sr-only">Expand evidence</span></th>
+        <th scope="col" class="name-heading">Capability</th>
+        <th scope="col" class="namespace-heading">Namespace</th>
+        <th scope="col" class="state-heading">State</th><th scope="col" class="run-heading">dynamic<span class="muted">50%</span><span>2 / 4</span></th>
+        <th scope="col" class="attack-heading">ATT&amp;CK</th>
+        <th scope="col" class="priority-heading">Priority</th>
+      </tr></thead><tbody class="matrix-group" data-record data-group="comparable" data-state="unobserved" data-name="inject shellcode into remote process" data-search="inject shellcode into remote process load-code/inject/process Unobserved unobserved high T1055 E1055 0x404000 0x404100 0x404000 0x404100 0x404000 0x404100 0x404000 0x404100 0x4000 0x4100"><tr class="capability-row selected" data-row><td class="expand-cell"><button type="button" class="row-toggle" id="finding-0-toggle" aria-expanded="true" aria-controls="finding-0-detail" aria-label="Evidence for inject shellcode into remote process"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 5 7 7-7 7"/></svg></button></td><th scope="row" class="name-cell">inject shellcode into remote process<span class="mobile-namespace">load-code/inject/process</span></th><td class="namespace-cell">load-code/inject/process</td><td class="state-cell" data-label="State">Unobserved</td><td class="run-cell missing" data-label="dynamic"><span class="observation" title="dynamic: Missing"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg><span class="sr-only">Missing</span></span></td><td class="attack-cell" data-label="ATT&CK"><code><span class="identifier-token">T1055</span></code></td><td class="priority-cell" data-label="Priority">high <span class="score">69</span></td></tr><tr class="details-row" id="finding-0-detail"><td colspan="7"><div class="finding-detail" id="finding-0-content" role="region" aria-label="Evidence for inject shellcode into remote process"><h2 class="sr-only">Evidence for inject shellcode into remote process</h2><div class="evidence-column"><section class="evidence-source"><h3>Static evidence <span class="muted">(2 locations)</span></h3><table class="evidence-table"><caption class="sr-only">Static evidence</caption><thead><tr><th scope="col">VA / location</th><th scope="col">RVA</th><th scope="col"><span class="sr-only">Copy</span></th></tr></thead><tbody><tr><td><code>0x404000</code></td><td><code>0x4000</code><button type="button" class="icon-button copy-button js-only" data-copy="0x4000" aria-label="Copy RVA 0x4000" title="Copy RVA 0x4000"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg></button></td><td><button type="button" class="icon-button copy-button js-only" data-copy="0x404000" aria-label="Copy evidence 0x404000" title="Copy evidence 0x404000"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg></button></td></tr><tr><td><code>0x404100</code></td><td><code>0x4100</code><button type="button" class="icon-button copy-button js-only" data-copy="0x4100" aria-label="Copy RVA 0x4100" title="Copy RVA 0x4100"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg></button></td><td><button type="button" class="icon-button copy-button js-only" data-copy="0x404100" aria-label="Copy evidence 0x404100" title="Copy evidence 0x404100"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg></button></td></tr></tbody></table><div class="image-base"><span>Image base</span><code>0x400000</code><button type="button" class="icon-button copy-button js-only" data-copy="0x400000" aria-label="Copy image base" title="Copy image base"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg></button></div></section></div><div class="rule-column"><dl class="key-values identifiers"><div><dt>ATT&amp;CK</dt><dd><code>T1055</code></dd></div><div><dt>MBC</dt><dd><code>E1055</code></dd></div></dl><dl class="key-values scopes"><div><dt>Static scope</dt><dd>function</dd></div><div><dt>Dynamic scope</dt><dd>thread</dd></div></dl><details class="reason-details"><summary>Observation by run</summary><dl class="key-values"><div><dt>Observed in</dt><dd>None</dd></div><div><dt>Missing from</dt><dd>dynamic</dd></div></dl></details></div><div class="action-column"><h3>Suggested follow-up</h3><p>Capture child-process memory and break on the supporting allocation/write/thread APIs near the static match.</p><details class="reason-details"><summary>Priority and context</summary><p class="muted">Scores set investigation order, not severity or probability.</p><ul><li>statically present but absent from this dynamic result</li><li>process-injection capability</li><li>mapped to MITRE ATT&amp;CK</li><li>mapped to MBC</li><li>matched at 2 static locations</li><li>rule supports dynamic thread scope</li><li>the run also observed an anti-analysis capability</li></ul></details></div></div></td></tr></tbody><tbody class="matrix-group" data-record data-group="comparable" data-state="unobserved" data-name="create scheduled task" data-search="create scheduled task persistence/scheduled-task Unobserved unobserved high T1053.005 C0044 0x405000 0x405000 0x405000 0x405000 0x5000"><tr class="capability-row" data-row><td class="expand-cell"><button type="button" class="row-toggle" id="finding-1-toggle" aria-expanded="false" aria-controls="finding-1-detail" aria-label="Evidence for create scheduled task"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 5 7 7-7 7"/></svg></button></td><th scope="row" class="name-cell">create scheduled task<span class="mobile-namespace">persistence/scheduled-task</span></th><td class="namespace-cell">persistence/scheduled-task</td><td class="state-cell" data-label="State">Unobserved</td><td class="run-cell missing" data-label="dynamic"><span class="observation" title="dynamic: Missing"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg><span class="sr-only">Missing</span></span></td><td class="attack-cell" data-label="ATT&CK"><code><span class="identifier-token">T1053.005</span></code></td><td class="priority-cell" data-label="Priority">high <span class="score">61</span></td></tr><tr class="details-row" id="finding-1-detail" hidden><td colspan="7"><div class="finding-detail" id="finding-1-content" role="region" aria-label="Evidence for create scheduled task"><h2 class="sr-only">Evidence for create scheduled task</h2><div class="evidence-column"><section class="evidence-source"><h3>Static evidence <span class="muted">(1 location)</span></h3><table class="evidence-table"><caption class="sr-only">Static evidence</caption><thead><tr><th scope="col">VA / location</th><th scope="col">RVA</th><th scope="col"><span class="sr-only">Copy</span></th></tr></thead><tbody><tr><td><code>0x405000</code></td><td><code>0x5000</code><button type="button" class="icon-button copy-button js-only" data-copy="0x5000" aria-label="Copy RVA 0x5000" title="Copy RVA 0x5000"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg></button></td><td><button type="button" class="icon-button copy-button js-only" data-copy="0x405000" aria-label="Copy evidence 0x405000" title="Copy evidence 0x405000"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg></button></td></tr></tbody></table><div class="image-base"><span>Image base</span><code>0x400000</code><button type="button" class="icon-button copy-button js-only" data-copy="0x400000" aria-label="Copy image base" title="Copy image base"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg></button></div></section></div><div class="rule-column"><dl class="key-values identifiers"><div><dt>ATT&amp;CK</dt><dd><code>T1053.005</code></dd></div><div><dt>MBC</dt><dd><code>C0044</code></dd></div></dl><dl class="key-values scopes"><div><dt>Static scope</dt><dd>function</dd></div><div><dt>Dynamic scope</dt><dd>process</dd></div></dl><details class="reason-details"><summary>Observation by run</summary><dl class="key-values"><div><dt>Observed in</dt><dd>None</dd></div><div><dt>Missing from</dt><dd>dynamic</dd></div></dl></details></div><div class="action-column"><h3>Suggested follow-up</h3><p>Repeat with the required privilege and longer runtime; inspect registry, service, task, and startup artifacts.</p><details class="reason-details"><summary>Priority and context</summary><p class="muted">Scores set investigation order, not severity or probability.</p><ul><li>statically present but absent from this dynamic result</li><li>persistence capability</li><li>mapped to MITRE ATT&amp;CK</li><li>mapped to MBC</li><li>rule supports dynamic process scope</li><li>the run also observed an anti-analysis capability</li></ul></details></div></div></td></tr></tbody><tbody class="matrix-group" data-record data-group="comparable" data-state="observed" data-name="check for sandbox process names" data-search="check for sandbox process names anti-analysis/anti-vm/vm-detection Observed observed informational T1497.001 B0009 0x403000 0x403000 0x403000 0x403000 0x3000"><tr class="capability-row" data-row><td class="expand-cell"><button type="button" class="row-toggle" id="finding-2-toggle" aria-expanded="false" aria-controls="finding-2-detail" aria-label="Evidence for check for sandbox process names"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 5 7 7-7 7"/></svg></button></td><th scope="row" class="name-cell">check for sandbox process names<span class="mobile-namespace">anti-analysis/anti-vm/vm-detection</span></th><td class="namespace-cell">anti-analysis/anti-vm/vm-detection</td><td class="state-cell" data-label="State">Observed</td><td class="run-cell observed" data-label="dynamic"><span class="observation" title="dynamic: Observed"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><path d="m7 12 3 3 7-7"/></svg><span class="sr-only">Observed</span></span></td><td class="attack-cell" data-label="ATT&CK"><code><span class="identifier-token">T1497.001</span></code></td><td class="priority-cell" data-label="Priority"><span class="muted">info</span></td></tr><tr class="details-row" id="finding-2-detail" hidden><td colspan="7"><div class="finding-detail" id="finding-2-content" role="region" aria-label="Evidence for check for sandbox process names"><h2 class="sr-only">Evidence for check for sandbox process names</h2><div class="evidence-column"><section class="evidence-source"><h3>Static evidence <span class="muted">(1 location)</span></h3><table class="evidence-table"><caption class="sr-only">Static evidence</caption><thead><tr><th scope="col">VA / location</th><th scope="col">RVA</th><th scope="col"><span class="sr-only">Copy</span></th></tr></thead><tbody><tr><td><code>0x403000</code></td><td><code>0x3000</code><button type="button" class="icon-button copy-button js-only" data-copy="0x3000" aria-label="Copy RVA 0x3000" title="Copy RVA 0x3000"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg></button></td><td><button type="button" class="icon-button copy-button js-only" data-copy="0x403000" aria-label="Copy evidence 0x403000" title="Copy evidence 0x403000"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg></button></td></tr></tbody></table><div class="image-base"><span>Image base</span><code>0x400000</code><button type="button" class="icon-button copy-button js-only" data-copy="0x400000" aria-label="Copy image base" title="Copy image base"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg></button></div></section></div><div class="rule-column"><dl class="key-values identifiers"><div><dt>ATT&amp;CK</dt><dd><code>T1497.001</code></dd></div><div><dt>MBC</dt><dd><code>B0009</code></dd></div></dl><dl class="key-values scopes"><div><dt>Static scope</dt><dd>function</dd></div><div><dt>Dynamic scope</dt><dd>thread</dd></div></dl><details class="reason-details"><summary>Observation by run</summary><dl class="key-values"><div><dt>Observed in</dt><dd>dynamic</dd></div><div><dt>Missing from</dt><dd>None</dd></div></dl></details></div><div class="action-column"><h3>Observation</h3><p>This capability was observed in every supplied dynamic result.</p></div></div></td></tr></tbody><tbody class="matrix-group" data-record data-group="comparable" data-state="observed" data-name="communicate over HTTP" data-search="communicate over HTTP communication/http Observed observed informational T1071.001 C0002 0x402000 0x402000 0x402000 0x402000 0x2000"><tr class="capability-row" data-row><td class="expand-cell"><button type="button" class="row-toggle" id="finding-3-toggle" aria-expanded="false" aria-controls="finding-3-detail" aria-label="Evidence for communicate over HTTP"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 5 7 7-7 7"/></svg></button></td><th scope="row" class="name-cell">communicate over HTTP<span class="mobile-namespace">communication/http</span></th><td class="namespace-cell">communication/http</td><td class="state-cell" data-label="State">Observed</td><td class="run-cell observed" data-label="dynamic"><span class="observation" title="dynamic: Observed"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><path d="m7 12 3 3 7-7"/></svg><span class="sr-only">Observed</span></span></td><td class="attack-cell" data-label="ATT&CK"><code><span class="identifier-token">T1071.001</span></code></td><td class="priority-cell" data-label="Priority"><span class="muted">info</span></td></tr><tr class="details-row" id="finding-3-detail" hidden><td colspan="7"><div class="finding-detail" id="finding-3-content" role="region" aria-label="Evidence for communicate over HTTP"><h2 class="sr-only">Evidence for communicate over HTTP</h2><div class="evidence-column"><section class="evidence-source"><h3>Static evidence <span class="muted">(1 location)</span></h3><table class="evidence-table"><caption class="sr-only">Static evidence</caption><thead><tr><th scope="col">VA / location</th><th scope="col">RVA</th><th scope="col"><span class="sr-only">Copy</span></th></tr></thead><tbody><tr><td><code>0x402000</code></td><td><code>0x2000</code><button type="button" class="icon-button copy-button js-only" data-copy="0x2000" aria-label="Copy RVA 0x2000" title="Copy RVA 0x2000"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg></button></td><td><button type="button" class="icon-button copy-button js-only" data-copy="0x402000" aria-label="Copy evidence 0x402000" title="Copy evidence 0x402000"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg></button></td></tr></tbody></table><div class="image-base"><span>Image base</span><code>0x400000</code><button type="button" class="icon-button copy-button js-only" data-copy="0x400000" aria-label="Copy image base" title="Copy image base"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg></button></div></section></div><div class="rule-column"><dl class="key-values identifiers"><div><dt>ATT&amp;CK</dt><dd><code>T1071.001</code></dd></div><div><dt>MBC</dt><dd><code>C0002</code></dd></div></dl><dl class="key-values scopes"><div><dt>Static scope</dt><dd>function</dd></div><div><dt>Dynamic scope</dt><dd>thread</dd></div></dl><details class="reason-details"><summary>Observation by run</summary><dl class="key-values"><div><dt>Observed in</dt><dd>dynamic</dd></div><div><dt>Missing from</dt><dd>None</dd></div></dl></details></div><div class="action-column"><h3>Observation</h3><p>This capability was observed in every supplied dynamic result.</p></div></div></td></tr></tbody><tbody class="matrix-group" data-record data-group="runtime" data-state="dynamic-only" data-name="execute shell command" data-search="execute shell command load-code/execute Runtime-only dynamic-only informational T1059.003 ppid:512/pid:1024 ppid:512/pid:1024 ppid:512/pid:1024 ppid:512/pid:1024" hidden><tr class="capability-row" data-row><td class="expand-cell"><button type="button" class="row-toggle" id="finding-4-toggle" aria-expanded="false" aria-controls="finding-4-detail" aria-label="Evidence for execute shell command"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 5 7 7-7 7"/></svg></button></td><th scope="row" class="name-cell">execute shell command<span class="mobile-namespace">load-code/execute</span></th><td class="namespace-cell">load-code/execute</td><td class="state-cell" data-label="State">Runtime-only</td><td class="run-cell observed" data-label="dynamic"><span class="observation" title="dynamic: Observed"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><path d="m7 12 3 3 7-7"/></svg><span class="sr-only">Observed</span></span></td><td class="attack-cell" data-label="ATT&CK"><code><span class="identifier-token">T1059.003</span></code></td><td class="priority-cell" data-label="Priority"><span class="muted">info</span></td></tr><tr class="details-row" id="finding-4-detail" hidden><td colspan="7"><div class="finding-detail" id="finding-4-content" role="region" aria-label="Evidence for execute shell command"><h2 class="sr-only">Evidence for execute shell command</h2><div class="evidence-column"><section class="evidence-source"><h3>dynamic evidence <span class="muted">(1 location)</span></h3><table class="evidence-table"><caption class="sr-only">dynamic evidence</caption><thead><tr><th scope="col">Location</th><th scope="col">Address type</th><th scope="col"><span class="sr-only">Copy</span></th></tr></thead><tbody><tr><td><code>ppid:512/pid:1024</code></td><td><code>process</code></td><td><button type="button" class="icon-button copy-button js-only" data-copy="ppid:512/pid:1024" aria-label="Copy evidence ppid:512/pid:1024" title="Copy evidence ppid:512/pid:1024"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg></button></td></tr></tbody></table></section></div><div class="rule-column"><dl class="key-values identifiers"><div><dt>ATT&amp;CK</dt><dd><code>T1059.003</code></dd></div><div><dt>MBC</dt><dd><code>Not mapped</code></dd></div></dl><dl class="key-values scopes"><div><dt>Static scope</dt><dd>function</dd></div><div><dt>Dynamic scope</dt><dd>process</dd></div></dl><details class="reason-details"><summary>Observation by run</summary><dl class="key-values"><div><dt>Observed in</dt><dd>dynamic</dd></div><div><dt>Missing from</dt><dd>None</dd></div></dl></details></div><div class="action-column"><h3>Runtime observation</h3><p>This capability appears only in dynamic results. Runtime resolution, unpacking, or extractor differences may explain the additional match.</p></div></div></td></tr></tbody><tbody class="matrix-group" data-record data-group="excluded" data-state="static-only" data-name="encrypt data using AES" data-search="encrypt data using AES data-manipulation/encryption/aes Static-only static-only informational C0027 0x406000 0x406000 0x406000 0x406000 0x6000" hidden><tr class="capability-row" data-row><td class="expand-cell"><button type="button" class="row-toggle" id="finding-5-toggle" aria-expanded="false" aria-controls="finding-5-detail" aria-label="Evidence for encrypt data using AES"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 5 7 7-7 7"/></svg></button></td><th scope="row" class="name-cell">encrypt data using AES<span class="mobile-namespace">data-manipulation/encryption/aes</span></th><td class="namespace-cell">data-manipulation/encryption/aes</td><td class="state-cell" data-label="State">Static-only</td><td class="run-cell neutral" data-label="dynamic"><span class="observation" title="dynamic: Not comparable"><span aria-hidden="true">—</span><span class="sr-only">Not comparable</span></span></td><td class="attack-cell" data-label="ATT&CK"><code>—</code></td><td class="priority-cell" data-label="Priority"><span class="muted">info</span></td></tr><tr class="details-row" id="finding-5-detail" hidden><td colspan="7"><div class="finding-detail" id="finding-5-content" role="region" aria-label="Evidence for encrypt data using AES"><h2 class="sr-only">Evidence for encrypt data using AES</h2><div class="evidence-column"><section class="evidence-source"><h3>Static evidence <span class="muted">(1 location)</span></h3><table class="evidence-table"><caption class="sr-only">Static evidence</caption><thead><tr><th scope="col">VA / location</th><th scope="col">RVA</th><th scope="col"><span class="sr-only">Copy</span></th></tr></thead><tbody><tr><td><code>0x406000</code></td><td><code>0x6000</code><button type="button" class="icon-button copy-button js-only" data-copy="0x6000" aria-label="Copy RVA 0x6000" title="Copy RVA 0x6000"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg></button></td><td><button type="button" class="icon-button copy-button js-only" data-copy="0x406000" aria-label="Copy evidence 0x406000" title="Copy evidence 0x406000"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg></button></td></tr></tbody></table><div class="image-base"><span>Image base</span><code>0x400000</code><button type="button" class="icon-button copy-button js-only" data-copy="0x400000" aria-label="Copy image base" title="Copy image base"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg></button></div></section></div><div class="rule-column"><dl class="key-values identifiers"><div><dt>ATT&amp;CK</dt><dd><code>Not mapped</code></dd></div><div><dt>MBC</dt><dd><code>C0027</code></dd></div></dl><dl class="key-values scopes"><div><dt>Static scope</dt><dd>function</dd></div><div><dt>Dynamic scope</dt><dd>Not supported</dd></div></dl></div><div class="action-column"><h3>Coverage boundary</h3><p>This capability is excluded from the coverage denominator. The rule does not declare a supported dynamic scope.</p></div></div></td></tr></tbody>
+    </table>
+  </div>
+  <div class="empty-state" data-empty hidden>
+    <h2 data-empty-title>No comparable capabilities</h2>
+    <p data-empty-message>Check the runtime-only and excluded views for other matches.</p>
+    <button type="button" class="button js-only" data-reset>Reset filters</button>
+  </div>
+  <div class="matrix-footer">
+    <span data-result-count role="status" aria-live="polite">4 comparable capabilities</span>
+    <div class="legend" aria-label="Observation legend">
+      <span class="observed"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><path d="m7 12 3 3 7-7"/></svg><span>Observed</span></span>
+      <span class="missing"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg><span>Missing</span></span>
+      <span class="mixed"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><path d="M12 7v10M7 12h10"/></svg><span>Some runs</span></span>
+    </div>
+    <span class="boundary">A missing match does not prove non-execution.</span>
+  </div>
+</section>
+<div class="report-sections"><details class="report-section" id="run-conditions"><summary><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 5 7 7-7 7"/></svg><span>Run details</span></summary><div class="section-content"><p class="section-intro">Coverage for the supplied dynamic result.</p><div class="horizontal-scroll" tabindex="0" role="region" aria-label="Run coverage and conditions"><table class="data-table"><caption class="sr-only">Run coverage and conditions</caption><thead><tr><th scope="col">Run</th><th scope="col">Coverage</th><th scope="col">Runtime-only</th><th scope="col">Input confidence</th></tr></thead><tbody><tr><th scope="row">dynamic</th><td>50% <span class="muted">(2/4)</span></td><td>1</td><td>high</td></tr></tbody></table></div></div></details><details class="report-section" id="evidence-hotspots"><summary><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 5 7 7-7 7"/></svg><span>Evidence hotspots</span></summary><div class="section-content"><p class="section-intro">Findings at the same exact RVA. These are not inferred function boundaries or call-graph relationships.</p><div class="horizontal-scroll" tabindex="0" role="region" aria-label="Evidence hotspots"><table class="data-table"><caption class="sr-only">Evidence hotspots</caption><thead><tr><th scope="col">RVA</th><th scope="col">Findings</th><th scope="col">Max priority</th><th scope="col">Capabilities</th></tr></thead><tbody><tr><th scope="row"><code>0x4000</code><button type="button" class="icon-button copy-button js-only" data-copy="0x4000" aria-label="Copy RVA 0x4000" title="Copy RVA 0x4000"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg></button></th><td>1</td><td>69</td><td class="hotspot-links"><button type="button" class="text-button js-only" data-find="inject shellcode into remote process">inject shellcode into remote process</button><span class="print-only">inject shellcode into remote process</span></td></tr><tr><th scope="row"><code>0x4100</code><button type="button" class="icon-button copy-button js-only" data-copy="0x4100" aria-label="Copy RVA 0x4100" title="Copy RVA 0x4100"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg></button></th><td>1</td><td>69</td><td class="hotspot-links"><button type="button" class="text-button js-only" data-find="inject shellcode into remote process">inject shellcode into remote process</button><span class="print-only">inject shellcode into remote process</span></td></tr><tr><th scope="row"><code>0x5000</code><button type="button" class="icon-button copy-button js-only" data-copy="0x5000" aria-label="Copy RVA 0x5000" title="Copy RVA 0x5000"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg></button></th><td>1</td><td>61</td><td class="hotspot-links"><button type="button" class="text-button js-only" data-find="create scheduled task">create scheduled task</button><span class="print-only">create scheduled task</span></td></tr></tbody></table></div></div></details><details class="report-section" id="input-details"><summary><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 5 7 7-7 7"/></svg><span>Input details</span></summary><div class="section-content"><p class="section-intro">High input confidence describes consistency between the supplied documents. It is not a confidence score for a behavioral conclusion.</p><div class="input-documents"><section class="input-document"><h3>Static</h3><div class="hash-line"><span>SHA-256</span><code>aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</code><button type="button" class="icon-button copy-button js-only" data-copy="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" aria-label="Copy SHA-256 for Static" title="Copy SHA-256 for Static"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg></button></div><dl class="key-values"><div><dt>Report</dt><dd><code>examples\static.json</code></dd></div><div><dt>Sample</dt><dd><code>demo.exe</code></dd></div><div><dt>capa version</dt><dd>9.4.0</dd></div><div><dt>Extractor</dt><dd>VivisectFeatureExtractor</dd></div><div><dt>Platform</dt><dd>windows / amd64 / pe</dd></div></dl></section><section class="input-document"><h3>dynamic</h3><div class="hash-line"><span>SHA-256</span><code>aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</code><button type="button" class="icon-button copy-button js-only" data-copy="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" aria-label="Copy SHA-256 for dynamic" title="Copy SHA-256 for dynamic"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg></button></div><dl class="key-values"><div><dt>Report</dt><dd><code>examples\dynamic.json</code></dd></div><div><dt>Sample</dt><dd><code>cape-report.json</code></dd></div><div><dt>capa version</dt><dd>9.4.0</dd></div><div><dt>Extractor</dt><dd>CapeExtractor</dd></div><div><dt>Platform</dt><dd>windows / amd64 / pe</dd></div></dl></section></div><p class="muted">No ruleset manifest supplied.</p></div></details><details class="report-section" id="analysis-context"><summary><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 5 7 7-7 7"/></svg><span>Anti-analysis context</span></summary><div class="section-content"><ul><li><strong>dynamic</strong>: check for sandbox process names</li></ul><p class="muted">These observed matches add a small priority boost to other gaps. They do not establish that any check caused the missing behavior.</p></div></details></div>
+</main>
+<div class="toast" data-feedback role="status" aria-live="polite" hidden></div>
+<dialog class="copy-dialog" aria-labelledby="copy-title">
+  <form method="dialog"><div class="dialog-heading"><h2 id="copy-title">Copy text</h2>
+    <button type="submit" class="button">Close</button></div>
+    <p>Your browser blocked automatic copying. Select and copy the text below.</p>
+    <textarea readonly aria-label="Text to copy"></textarea>
+  </form>
+</dialog>
+<script id="report-data" type="application/json">{"schema_version":1,"comparison":{"confidence":"high","sample_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","static_input":"examples\\static.json","dynamic_input":"examples\\dynamic.json","static_capa_version":"9.4.0","dynamic_capa_version":"9.4.0","gate_signals":["check for sandbox process names"],"warnings":[],"source_drift":[]},"summary":{"static_rules":5,"dynamic_rules":3,"comparable_static_rules":4,"observed_rules":2,"unobserved_rules":2,"static_only_rules":1,"dynamic_only_rules":1,"ruleset_unverified_rules":0,"observed_coverage":0.5},"unobserved":[{"status":"unobserved","name":"inject shellcode into remote process","namespace":"load-code/inject/process","priority":69,"priority_label":"high","static_scope":"function","dynamic_scope":"thread","attack":["T1055"],"mbc":["E1055"],"static_evidence":["0x404000","0x404100"],"reasons":["statically present but absent from this dynamic result","process-injection capability","mapped to MITRE ATT\u0026CK","mapped to MBC","matched at 2 static locations","rule supports dynamic thread scope","the run also observed an anti-analysis capability"],"suggested_action":"Capture child-process memory and break on the supporting allocation/write/thread APIs near the static match."},{"status":"unobserved","name":"create scheduled task","namespace":"persistence/scheduled-task","priority":61,"priority_label":"high","static_scope":"function","dynamic_scope":"process","attack":["T1053.005"],"mbc":["C0044"],"static_evidence":["0x405000"],"reasons":["statically present but absent from this dynamic result","persistence capability","mapped to MITRE ATT\u0026CK","mapped to MBC","rule supports dynamic process scope","the run also observed an anti-analysis capability"],"suggested_action":"Repeat with the required privilege and longer runtime; inspect registry, service, task, and startup artifacts."}],"observed":[{"status":"observed","name":"check for sandbox process names","namespace":"anti-analysis/anti-vm/vm-detection","priority":0,"priority_label":"informational","static_scope":"function","dynamic_scope":"thread","attack":["T1497.001"],"mbc":["B0009"],"static_evidence":["0x403000"],"reasons":[],"suggested_action":""},{"status":"observed","name":"communicate over HTTP","namespace":"communication/http","priority":0,"priority_label":"informational","static_scope":"function","dynamic_scope":"thread","attack":["T1071.001"],"mbc":["C0002"],"static_evidence":["0x402000"],"reasons":[],"suggested_action":""}],"static_only":[{"status":"static-only","name":"encrypt data using AES","namespace":"data-manipulation/encryption/aes","priority":0,"priority_label":"informational","static_scope":"function","dynamic_scope":null,"attack":[],"mbc":["C0027"],"static_evidence":["0x406000"],"reasons":[],"suggested_action":""}],"dynamic_only":[{"status":"dynamic-only","name":"execute shell command","namespace":"load-code/execute","priority":0,"priority_label":"informational","static_scope":"function","dynamic_scope":"process","attack":["T1059.003"],"mbc":[],"static_evidence":["ppid:512/pid:1024"],"reasons":[],"suggested_action":""}],"ruleset_unverified":[],"evidence_hotspots":[{"rva":16384,"display":"0x4000","finding_count":1,"rule_names":["inject shellcode into remote process"],"statuses":["unobserved"],"aggregate_priority":69,"maximum_priority":69},{"rva":16640,"display":"0x4100","finding_count":1,"rule_names":["inject shellcode into remote process"],"statuses":["unobserved"],"aggregate_priority":69,"maximum_priority":69},{"rva":20480,"display":"0x5000","finding_count":1,"rule_names":["create scheduled task"],"statuses":["unobserved"],"aggregate_priority":61,"maximum_priority":61}],"metadata":{"include_library_rules":false,"sample_hashes_match":true,"static_extractor":"VivisectFeatureExtractor","dynamic_extractor":"CapeExtractor"}}</script>
+<script>(() => {
+  "use strict";
+
+  const select = (selector) => document.querySelector(selector);
+  const search = select("input[data-search]");
+  const state = select("[data-state-filter]");
+  const count = select("[data-result-count]");
+  const empty = select("[data-empty]");
+  const reset = select("[data-reset]");
+  const description = select("[data-group-description]");
+  const buttons = [...document.querySelectorAll("[data-group-button]")];
+  const records = [...document.querySelectorAll("[data-record]")].map((element) => ({
+    element,
+    group: element.dataset.group,
+    state: element.dataset.state,
+    name: element.dataset.name,
+    text: element.dataset.search.toLocaleLowerCase(),
+    toggle: element.querySelector(".row-toggle"),
+    row: element.querySelector(".capability-row"),
+    detail: element.querySelector(".details-row"),
+  }));
+  const labels = { comparable: "comparable", runtime: "runtime-only", excluded: "excluded" };
+  let group = "comparable";
+  let feedbackTimer;
+  let copyTrigger;
+
+  function setExpanded(record, expanded) {
+    record.toggle.setAttribute("aria-expanded", String(expanded));
+    record.detail.hidden = !expanded;
+    record.row.classList.toggle("selected", expanded);
+  }
+
+  function openRecord(record) {
+    records.forEach((entry) => setExpanded(entry, entry === record));
+  }
+
+  function update() {
+    const terms = search.value.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    const inGroup = records.filter((record) => record.group === group);
+    let visible = 0;
+    records.forEach((record) => {
+      const matches = record.group === group
+        && (!state.value || record.state === state.value)
+        && terms.every((term) => record.text.includes(term));
+      record.element.hidden = !matches;
+      if (matches) visible += 1;
+    });
+    const filtered = terms.length > 0 || Boolean(state.value);
+    count.textContent = `${visible}${filtered ? ` of ${inGroup.length}` : ""} ${labels[group]} ${visible === 1 && !filtered ? "capability" : "capabilities"}`;
+    empty.hidden = visible > 0;
+    reset.hidden = !filtered;
+    select("[data-empty-title]").textContent = filtered
+      ? "No matching capabilities" : `No ${labels[group]} capabilities`;
+    select("[data-empty-message]").textContent = filtered
+      ? "Try another name, namespace, ATT&CK ID, address, or observation state."
+      : group === "comparable"
+        ? "Check the runtime-only and excluded views for other matches."
+        : group === "runtime"
+          ? "No additional capabilities were found only in the dynamic results."
+          : "No findings were excluded from comparable coverage.";
+    description.hidden = group === "comparable";
+    description.textContent = group === "runtime"
+      ? "Present in dynamic results but absent from comparable static findings. Not included in comparable coverage."
+      : group === "excluded"
+        ? "Unsupported dynamic scope or unverified rule source. Not included in comparable coverage."
+        : "";
+  }
+
+  function switchGroup(next) {
+    group = next;
+    state.value = "";
+    buttons.forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.dataset.groupButton === group));
+    });
+    const states = new Set(records.filter((record) => record.group === group).map((record) => record.state));
+    [...state.options].forEach((option) => {
+      option.hidden = Boolean(option.value) && !states.has(option.value);
+      option.disabled = option.hidden;
+    });
+    update();
+  }
+
+  function notify(message) {
+    const feedback = select("[data-feedback]");
+    clearTimeout(feedbackTimer);
+    feedback.textContent = message;
+    feedback.hidden = false;
+    feedbackTimer = setTimeout(() => { feedback.hidden = true; }, 3500);
+  }
+
+  records.forEach((record) => {
+    record.toggle.addEventListener("click", () => {
+      if (record.toggle.getAttribute("aria-expanded") === "true") setExpanded(record, false);
+      else openRecord(record);
+    });
+    record.row.addEventListener("click", (event) => {
+      if (event.target.closest("button, a, input, select, textarea") || String(window.getSelection())) return;
+      record.toggle.click();
+    });
+    record.toggle.addEventListener("keydown", (event) => {
+      const visible = records.filter((entry) => !entry.element.hidden);
+      const index = visible.indexOf(record);
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const next = index + (event.key === "ArrowDown" ? 1 : -1);
+        visible[Math.max(0, Math.min(next, visible.length - 1))]?.toggle.focus();
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        openRecord(record);
+      } else if (event.key === "ArrowLeft" || event.key === "Escape") {
+        event.preventDefault();
+        setExpanded(record, false);
+      }
+    });
+    record.detail.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setExpanded(record, false);
+        record.toggle.focus();
+      }
+    });
+  });
+
+  buttons.forEach((button) => button.addEventListener("click", () => switchGroup(button.dataset.groupButton)));
+  search.addEventListener("input", update);
+  state.addEventListener("change", update);
+  reset.addEventListener("click", () => {
+    search.value = "";
+    state.value = "";
+    update();
+    search.focus();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "/" && !event.ctrlKey && !event.metaKey && !event.altKey
+        && !event.target.closest("input, textarea, select, [contenteditable]")
+        && !select(".copy-dialog").open) {
+      event.preventDefault();
+      search.focus();
+    }
+  });
+
+  document.querySelectorAll("[data-open-section]").forEach((link) => {
+    link.addEventListener("click", () => {
+      const section = document.getElementById(link.hash.slice(1));
+      if (!section) return;
+      section.open = true;
+      requestAnimationFrame(() => section.querySelector("summary").focus({ preventScroll: true }));
+    });
+  });
+  document.querySelectorAll("[data-find]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const record = records.find((entry) => entry.name === button.dataset.find);
+      if (!record) return;
+      search.value = "";
+      switchGroup(record.group);
+      openRecord(record);
+      record.toggle.focus({ preventScroll: true });
+      record.row.scrollIntoView({ block: "center" });
+    });
+  });
+
+  const dialog = select(".copy-dialog");
+  dialog.addEventListener("close", () => copyTrigger?.focus({ preventScroll: true }));
+  dialog.addEventListener("click", (event) => {
+    if (event.target !== dialog) return;
+    const bounds = dialog.getBoundingClientRect();
+    if (event.clientX < bounds.left || event.clientX > bounds.right
+        || event.clientY < bounds.top || event.clientY > bounds.bottom) dialog.close();
+  });
+  document.querySelectorAll("[data-copy]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const value = button.dataset.copy;
+      try {
+        await navigator.clipboard.writeText(value);
+        notify("Copied to clipboard");
+      } catch {
+        copyTrigger = button;
+        const text = dialog.querySelector("textarea");
+        text.value = value;
+        dialog.showModal();
+        text.focus();
+        text.select();
+      }
+    });
+  });
+
+  select("[data-export]").addEventListener("click", () => {
+    try {
+      const data = JSON.parse(select("#report-data").textContent);
+      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2) + "\n"], { type: "application/json" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = data.runs ? "capagap-matrix.json" : "capagap-comparison.json";
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      notify("JSON export prepared");
+    } catch {
+      notify("Could not prepare JSON export. Generate JSON with the command-line tool.");
+    }
+  });
+
+  let printState = [];
+  window.addEventListener("beforeprint", () => {
+    printState = [...document.querySelectorAll("details")].map((element) => [element, element.open]);
+    printState.forEach(([element]) => { element.open = true; });
+  });
+  window.addEventListener("afterprint", () => {
+    printState.forEach(([element, open]) => { element.open = open; });
+    printState = [];
+  });
+
+  switchGroup("comparable");
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+rule:
+  meta:
+    name: CapaGap synthetic capability
+    namespace: examples/capagap
+    authors:
+      - CapaGap
+    scopes:
+      static: function
+      dynamic: process
+  features:
+    - string: CapaGap synthetic fixture

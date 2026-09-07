@@ -1,0 +1,64 @@
+{
+  "meta": {
+    "capagap": {"synthetic": true},
+    "timestamp": "2026-08-29T20:05:00Z",
+    "version": "9.4.0",
+    "argv": ["capa", "cape-report.json", "-j"],
+    "sample": {
+      "md5": "11111111111111111111111111111111",
+      "sha1": "2222222222222222222222222222222222222222",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "path": "cape-report.json"
+    },
+    "flavor": "dynamic",
+    "analysis": {
+      "format": "pe",
+      "arch": "amd64",
+      "os": "windows",
+      "extractor": "CapeExtractor",
+      "rules": ["capa-rules"],
+      "layout": {"processes": []},
+      "feature_counts": {"file": 0, "processes": []}
+    }
+  },
+  "rules": {
+    "communicate over HTTP": {
+      "meta": {
+        "name": "communicate over HTTP",
+        "namespace": "communication/http",
+        "authors": ["demo"],
+        "scopes": {"static": "function", "dynamic": "thread"},
+        "attack": [{"parts": ["Command and Control", "Application Layer Protocol", "Web Protocols"], "tactic": "Command and Control", "technique": "Application Layer Protocol", "subtechnique": "Web Protocols", "id": "T1071.001"}],
+        "mbc": [{"parts": ["Communication", "HTTP Communication"], "objective": "Communication", "behavior": "HTTP Communication", "method": "", "id": "C0002"}],
+        "references": [], "examples": [], "description": "", "lib": false, "is_subscope_rule": false, "maec": {}
+      },
+      "source": "rule: communicate over HTTP\nfeatures: shared-demo\n",
+      "matches": [[{"type": "thread", "value": [512, 1024, 2048]}, {"success": true}]]
+    },
+    "check for sandbox process names": {
+      "meta": {
+        "name": "check for sandbox process names",
+        "namespace": "anti-analysis/anti-vm/vm-detection",
+        "authors": ["demo"],
+        "scopes": {"static": "function", "dynamic": "thread"},
+        "attack": [{"parts": ["Defense Evasion", "Virtualization/Sandbox Evasion", "System Checks"], "tactic": "Defense Evasion", "technique": "Virtualization/Sandbox Evasion", "subtechnique": "System Checks", "id": "T1497.001"}],
+        "mbc": [{"parts": ["Anti-Behavioral Analysis", "Virtual Machine Detection"], "objective": "Anti-Behavioral Analysis", "behavior": "Virtual Machine Detection", "method": "", "id": "B0009"}],
+        "references": [], "examples": [], "description": "", "lib": false, "is_subscope_rule": false, "maec": {}
+      },
+      "source": "rule: check for sandbox process names\nfeatures: shared-demo\n",
+      "matches": [[{"type": "thread", "value": [512, 1024, 2048]}, {"success": true}]]
+    },
+    "execute shell command": {
+      "meta": {
+        "name": "execute shell command",
+        "namespace": "load-code/execute",
+        "authors": ["demo"],
+        "scopes": {"static": "function", "dynamic": "process"},
+        "attack": [{"parts": ["Execution", "Command and Scripting Interpreter", "Windows Command Shell"], "tactic": "Execution", "technique": "Command and Scripting Interpreter", "subtechnique": "Windows Command Shell", "id": "T1059.003"}],
+        "mbc": [], "references": [], "examples": [], "description": "", "lib": false, "is_subscope_rule": false, "maec": {}
+      },
+      "source": "rule: execute shell command\nfeatures: dynamic-demo\n",
+      "matches": [[{"type": "process", "value": [512, 1024]}, {"success": true}]]
+    }
+  }
+}

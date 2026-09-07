@@ -1,0 +1,250 @@
+{
+  "analysis": {
+    "confidence": "high",
+    "experiment": {
+      "baseline": "baseline",
+      "runs": [
+        {
+          "changed_conditions": [],
+          "conditions": {
+            "interaction": "off"
+          },
+          "label": "baseline"
+        },
+        {
+          "changed_conditions": [
+            "interaction"
+          ],
+          "conditions": {
+            "interaction": "on"
+          },
+          "label": "interactive"
+        }
+      ],
+      "warnings": []
+    },
+    "ruleset_manifest": null,
+    "run_labels": [
+      "baseline",
+      "interactive"
+    ],
+    "sample": {
+      "arch": "amd64",
+      "format": "pe",
+      "os": "windows",
+      "path": "demo.exe",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "selection": {
+      "minimum_priority": "low",
+      "minimum_score": 0,
+      "statuses": [
+        "never-observed",
+        "environment-sensitive"
+      ]
+    },
+    "source_image_base": 4194304,
+    "source_image_base_hex": "0x400000",
+    "static_capa_version": "9.4.0",
+    "static_input": "static.json",
+    "type": "multi-run-matrix",
+    "warnings": []
+  },
+  "evidence_hotspots": [
+    {
+      "aggregate_priority": 69,
+      "display": "0x4000",
+      "finding_count": 1,
+      "maximum_priority": 69,
+      "rule_names": [
+        "inject shellcode into remote process"
+      ],
+      "rva": 16384,
+      "statuses": [
+        "never-observed"
+      ]
+    },
+    {
+      "aggregate_priority": 69,
+      "display": "0x4100",
+      "finding_count": 1,
+      "maximum_priority": 69,
+      "rule_names": [
+        "inject shellcode into remote process"
+      ],
+      "rva": 16640,
+      "statuses": [
+        "never-observed"
+      ]
+    },
+    {
+      "aggregate_priority": 67,
+      "display": "0x5000",
+      "finding_count": 1,
+      "maximum_priority": 67,
+      "rule_names": [
+        "create scheduled task"
+      ],
+      "rva": 20480,
+      "statuses": [
+        "environment-sensitive"
+      ]
+    },
+    {
+      "aggregate_priority": 57,
+      "display": "0x3000",
+      "finding_count": 1,
+      "maximum_priority": 57,
+      "rule_names": [
+        "check for sandbox process names"
+      ],
+      "rva": 12288,
+      "statuses": [
+        "environment-sensitive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "attack": [
+        "T1055"
+      ],
+      "comment": "[CapaGap:9ac64513dda9de1b] | HIGH 69 | never-observed | inject shellcode into remote process | ATT&CK T1055 | not seen: baseline, interactive | next: Capture child-process memory and break on the supporting allocation/write/thread APIs near the static match.",
+      "dynamic_scope": "thread",
+      "id": "9ac64513dda9de1b",
+      "locations": [
+        {
+          "display": "0x404000",
+          "kind": "absolute",
+          "rva": 16384,
+          "value": 4210688
+        },
+        {
+          "display": "0x404100",
+          "kind": "absolute",
+          "rva": 16640,
+          "value": 4210944
+        }
+      ],
+      "mbc": [
+        "E1055"
+      ],
+      "name": "inject shellcode into remote process",
+      "namespace": "load-code/inject/process",
+      "observed_in": [],
+      "priority": 69,
+      "priority_label": "high",
+      "reasons": [
+        "not observed in any of 2 dynamic runs",
+        "process-injection capability",
+        "mapped to MITRE ATT&CK",
+        "mapped to MBC",
+        "matched at 2 static locations",
+        "rule supports dynamic thread scope",
+        "the run also observed an anti-analysis capability"
+      ],
+      "static_scope": "function",
+      "status": "never-observed",
+      "suggested_action": "Capture child-process memory and break on the supporting allocation/write/thread APIs near the static match.",
+      "unmappable_evidence": [],
+      "unobserved_in": [
+        "baseline",
+        "interactive"
+      ]
+    },
+    {
+      "attack": [
+        "T1053.005"
+      ],
+      "comment": "[CapaGap:e0792d5633d4a2c2] | HIGH 67 | environment-sensitive | create scheduled task | ATT&CK T1053.005 | seen: interactive | not seen: baseline | next: Repeat with the required privilege and longer runtime; inspect registry, service, task, and startup artifacts.",
+      "dynamic_scope": "process",
+      "id": "e0792d5633d4a2c2",
+      "locations": [
+        {
+          "display": "0x405000",
+          "kind": "absolute",
+          "rva": 20480,
+          "value": 4214784
+        }
+      ],
+      "mbc": [
+        "C0044"
+      ],
+      "name": "create scheduled task",
+      "namespace": "persistence/scheduled-task",
+      "observed_in": [
+        "interactive"
+      ],
+      "priority": 67,
+      "priority_label": "high",
+      "reasons": [
+        "observed in 1/2 runs; environment or stimuli changed coverage",
+        "persistence capability",
+        "mapped to MITRE ATT&CK",
+        "mapped to MBC",
+        "rule supports dynamic process scope",
+        "the run also observed an anti-analysis capability"
+      ],
+      "static_scope": "function",
+      "status": "environment-sensitive",
+      "suggested_action": "Repeat with the required privilege and longer runtime; inspect registry, service, task, and startup artifacts.",
+      "unmappable_evidence": [],
+      "unobserved_in": [
+        "baseline"
+      ]
+    },
+    {
+      "attack": [
+        "T1497.001"
+      ],
+      "comment": "[CapaGap:532f6d960d3ba099] | HIGH 57 | environment-sensitive | check for sandbox process names | ATT&CK T1497.001 | seen: baseline | not seen: interactive | next: Inspect the static match site and debug the decision branch; repeat in a differently fingerprinted environment.",
+      "dynamic_scope": "thread",
+      "id": "532f6d960d3ba099",
+      "locations": [
+        {
+          "display": "0x403000",
+          "kind": "absolute",
+          "rva": 12288,
+          "value": 4206592
+        }
+      ],
+      "mbc": [
+        "B0009"
+      ],
+      "name": "check for sandbox process names",
+      "namespace": "anti-analysis/anti-vm/vm-detection",
+      "observed_in": [
+        "baseline"
+      ],
+      "priority": 57,
+      "priority_label": "high",
+      "reasons": [
+        "observed in 1/2 runs; environment or stimuli changed coverage",
+        "anti-analysis capability",
+        "mapped to MITRE ATT&CK",
+        "mapped to MBC",
+        "rule supports dynamic thread scope"
+      ],
+      "static_scope": "function",
+      "status": "environment-sensitive",
+      "suggested_action": "Inspect the static match site and debug the decision branch; repeat in a differently fingerprinted environment.",
+      "unmappable_evidence": [],
+      "unobserved_in": [
+        "interactive"
+      ]
+    }
+  ],
+  "generator": {
+    "name": "capagap",
+    "version": "0.1.0"
+  },
+  "schema": "capagap-handoff",
+  "schema_version": 1,
+  "summary": {
+    "addressable_findings": 3,
+    "addressable_locations": 4,
+    "non_addressable_findings": 0,
+    "selected_findings": 3,
+    "unmappable_evidence": 0
+  }
+}

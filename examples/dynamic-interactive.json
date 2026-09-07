@@ -1,0 +1,64 @@
+{
+  "meta": {
+    "capagap": {"synthetic": true},
+    "timestamp": "2026-08-29T20:15:00Z",
+    "version": "9.4.0",
+    "argv": ["capa", "interactive-cape-report.json", "-j"],
+    "sample": {
+      "md5": "11111111111111111111111111111111",
+      "sha1": "2222222222222222222222222222222222222222",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "path": "interactive-cape-report.json"
+    },
+    "flavor": "dynamic",
+    "analysis": {
+      "format": "pe",
+      "arch": "amd64",
+      "os": "windows",
+      "extractor": "CapeExtractor",
+      "rules": ["capa-rules"],
+      "layout": {"processes": []},
+      "feature_counts": {"file": 0, "processes": []}
+    }
+  },
+  "rules": {
+    "communicate over HTTP": {
+      "meta": {
+        "name": "communicate over HTTP",
+        "namespace": "communication/http",
+        "authors": ["demo"],
+        "scopes": {"static": "function", "dynamic": "thread"},
+        "attack": [{"parts": ["Command and Control", "Application Layer Protocol", "Web Protocols"], "tactic": "Command and Control", "technique": "Application Layer Protocol", "subtechnique": "Web Protocols", "id": "T1071.001"}],
+        "mbc": [{"parts": ["Communication", "HTTP Communication"], "objective": "Communication", "behavior": "HTTP Communication", "method": "", "id": "C0002"}],
+        "references": [], "examples": [], "description": "", "lib": false, "is_subscope_rule": false, "maec": {}
+      },
+      "source": "rule: communicate over HTTP\nfeatures: shared-demo\n",
+      "matches": [[{"type": "thread", "value": [512, 1024, 4096]}, {"success": true}]]
+    },
+    "create scheduled task": {
+      "meta": {
+        "name": "create scheduled task",
+        "namespace": "persistence/scheduled-task",
+        "authors": ["demo"],
+        "scopes": {"static": "function", "dynamic": "process"},
+        "attack": [{"parts": ["Persistence", "Scheduled Task/Job", "Scheduled Task"], "tactic": "Persistence", "technique": "Scheduled Task/Job", "subtechnique": "Scheduled Task", "id": "T1053.005"}],
+        "mbc": [{"parts": ["Operating System", "Task Scheduler"], "objective": "Operating System", "behavior": "Task Scheduler", "method": "", "id": "C0044"}],
+        "references": [], "examples": [], "description": "", "lib": false, "is_subscope_rule": false, "maec": {}
+      },
+      "source": "rule: create scheduled task\nfeatures: demo\n",
+      "matches": [[{"type": "process", "value": [512, 1024]}, {"success": true}]]
+    },
+    "capture screenshot": {
+      "meta": {
+        "name": "capture screenshot",
+        "namespace": "collection/screenshot",
+        "authors": ["demo"],
+        "scopes": {"static": "function", "dynamic": "thread"},
+        "attack": [{"parts": ["Collection", "Screen Capture"], "tactic": "Collection", "technique": "Screen Capture", "subtechnique": "", "id": "T1113"}],
+        "mbc": [], "references": [], "examples": [], "description": "", "lib": false, "is_subscope_rule": false, "maec": {}
+      },
+      "source": "rule: capture screenshot\nfeatures: dynamic-demo\n",
+      "matches": [[{"type": "thread", "value": [512, 1024, 4096]}, {"success": true}]]
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "handoff_identity": "032e783a48fc723f658c9b7ecc27d549ef1a548bd153fe1c2e76347aa66cb6d1",
+  "reviews": [
+    {
+      "analyst_notes": "",
+      "disposition": "unreviewed",
+      "evidence": "",
+      "id": "9ac64513dda9de1b",
+      "name": "inject shellcode into remote process",
+      "reviewed_at": "",
+      "reviewer": ""
+    },
+    {
+      "analyst_notes": "",
+      "disposition": "unreviewed",
+      "evidence": "",
+      "id": "e0792d5633d4a2c2",
+      "name": "create scheduled task",
+      "reviewed_at": "",
+      "reviewer": ""
+    },
+    {
+      "analyst_notes": "",
+      "disposition": "unreviewed",
+      "evidence": "",
+      "id": "532f6d960d3ba099",
+      "name": "check for sandbox process names",
+      "reviewed_at": "",
+      "reviewer": ""
+    }
+  ],
+  "sample_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "schema": "capagap-triage",
+  "schema_version": 1
+}

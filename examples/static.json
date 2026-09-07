@@ -1,0 +1,107 @@
+{
+  "meta": {
+    "capagap": {"synthetic": true},
+    "timestamp": "2026-08-29T20:00:00Z",
+    "version": "9.4.0",
+    "argv": ["capa", "demo.exe", "-j"],
+    "sample": {
+      "md5": "11111111111111111111111111111111",
+      "sha1": "2222222222222222222222222222222222222222",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "path": "demo.exe"
+    },
+    "flavor": "static",
+    "analysis": {
+      "format": "pe",
+      "arch": "amd64",
+      "os": "windows",
+      "extractor": "VivisectFeatureExtractor",
+      "rules": ["capa-rules"],
+      "base_address": {"type": "absolute", "value": 4194304},
+      "layout": {"functions": []},
+      "feature_counts": {"file": 0, "functions": []},
+      "library_functions": []
+    }
+  },
+  "rules": {
+    "communicate over HTTP": {
+      "meta": {
+        "name": "communicate over HTTP",
+        "namespace": "communication/http",
+        "authors": ["demo"],
+        "scopes": {"static": "function", "dynamic": "thread"},
+        "attack": [{"parts": ["Command and Control", "Application Layer Protocol", "Web Protocols"], "tactic": "Command and Control", "technique": "Application Layer Protocol", "subtechnique": "Web Protocols", "id": "T1071.001"}],
+        "mbc": [{"parts": ["Communication", "HTTP Communication"], "objective": "Communication", "behavior": "HTTP Communication", "method": "", "id": "C0002"}],
+        "references": [], "examples": [], "description": "", "lib": false, "is_subscope_rule": false, "maec": {}
+      },
+      "source": "rule: communicate over HTTP\nfeatures: shared-demo\n",
+      "matches": [[{"type": "absolute", "value": 4202496}, {"success": true}]]
+    },
+    "check for sandbox process names": {
+      "meta": {
+        "name": "check for sandbox process names",
+        "namespace": "anti-analysis/anti-vm/vm-detection",
+        "authors": ["demo"],
+        "scopes": {"static": "function", "dynamic": "thread"},
+        "attack": [{"parts": ["Defense Evasion", "Virtualization/Sandbox Evasion", "System Checks"], "tactic": "Defense Evasion", "technique": "Virtualization/Sandbox Evasion", "subtechnique": "System Checks", "id": "T1497.001"}],
+        "mbc": [{"parts": ["Anti-Behavioral Analysis", "Virtual Machine Detection"], "objective": "Anti-Behavioral Analysis", "behavior": "Virtual Machine Detection", "method": "", "id": "B0009"}],
+        "references": [], "examples": [], "description": "", "lib": false, "is_subscope_rule": false, "maec": {}
+      },
+      "source": "rule: check for sandbox process names\nfeatures: shared-demo\n",
+      "matches": [[{"type": "absolute", "value": 4206592}, {"success": true}]]
+    },
+    "inject shellcode into remote process": {
+      "meta": {
+        "name": "inject shellcode into remote process",
+        "namespace": "load-code/inject/process",
+        "authors": ["demo"],
+        "scopes": {"static": "function", "dynamic": "thread"},
+        "attack": [{"parts": ["Defense Evasion", "Process Injection"], "tactic": "Defense Evasion", "technique": "Process Injection", "subtechnique": "", "id": "T1055"}],
+        "mbc": [{"parts": ["Process", "Process Injection"], "objective": "Process", "behavior": "Process Injection", "method": "", "id": "E1055"}],
+        "references": [], "examples": [], "description": "", "lib": false, "is_subscope_rule": false, "maec": {}
+      },
+      "source": "rule: inject shellcode into remote process\nfeatures: demo\n",
+      "matches": [
+        [{"type": "absolute", "value": 4210688}, {"success": true}],
+        [{"type": "absolute", "value": 4210944}, {"success": true}]
+      ]
+    },
+    "create scheduled task": {
+      "meta": {
+        "name": "create scheduled task",
+        "namespace": "persistence/scheduled-task",
+        "authors": ["demo"],
+        "scopes": {"static": "function", "dynamic": "process"},
+        "attack": [{"parts": ["Persistence", "Scheduled Task/Job", "Scheduled Task"], "tactic": "Persistence", "technique": "Scheduled Task/Job", "subtechnique": "Scheduled Task", "id": "T1053.005"}],
+        "mbc": [{"parts": ["Operating System", "Task Scheduler"], "objective": "Operating System", "behavior": "Task Scheduler", "method": "", "id": "C0044"}],
+        "references": [], "examples": [], "description": "", "lib": false, "is_subscope_rule": false, "maec": {}
+      },
+      "source": "rule: create scheduled task\nfeatures: demo\n",
+      "matches": [[{"type": "absolute", "value": 4214784}, {"success": true}]]
+    },
+    "encrypt data using AES": {
+      "meta": {
+        "name": "encrypt data using AES",
+        "namespace": "data-manipulation/encryption/aes",
+        "authors": ["demo"],
+        "scopes": {"static": "function"},
+        "attack": [],
+        "mbc": [{"parts": ["Data", "Encryption"], "objective": "Data", "behavior": "Encryption", "method": "", "id": "C0027"}],
+        "references": [], "examples": [], "description": "", "lib": false, "is_subscope_rule": false, "maec": {}
+      },
+      "source": "rule: encrypt data using AES\nfeatures: demo\n",
+      "matches": [[{"type": "absolute", "value": 4218880}, {"success": true}]]
+    },
+    "helper library rule": {
+      "meta": {
+        "name": "helper library rule",
+        "namespace": "internal/helper",
+        "authors": ["demo"],
+        "scopes": {"static": "function"},
+        "attack": [], "mbc": [], "references": [], "examples": [], "description": "", "lib": true, "is_subscope_rule": false, "maec": {}
+      },
+      "source": "rule: helper library rule\nfeatures: demo\n",
+      "matches": [[{"type": "absolute", "value": 4222976}, {"success": true}]]
+    }
+  }
+}
