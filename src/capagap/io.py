@@ -5,6 +5,7 @@ from __future__ import annotations
 import gzip
 import hashlib
 import json
+import zlib
 from dataclasses import replace
 from pathlib import Path
 from typing import Any, BinaryIO
@@ -40,7 +41,7 @@ def _read_bytes(path: Path) -> bytes:
                 try:
                     with gzip.GzipFile(fileobj=stream) as compressed:
                         return _read_limited(compressed)
-                except (gzip.BadGzipFile, EOFError, OSError) as exc:
+                except (gzip.BadGzipFile, EOFError, OSError, zlib.error) as exc:
                     raise DocumentError(f"invalid gzip stream: {path}") from exc
             return _read_limited(stream)
     except FileNotFoundError as exc:
@@ -148,8 +149,19 @@ def _normalize_rule(
     if not isinstance(source, str):
         source = ""
 
-    budget = budget or EvidenceBudget()
-    match_views = parse_matches(matches, _normalize_address, contexts or {}, budget)
+    document_budget = budget
+    local_budget = (
+        EvidenceBudget(remaining=budget.remaining)
+        if budget is not None
+        else EvidenceBudget()
+    )
+    match_views = parse_matches(
+        matches, _normalize_address, contexts or {}, local_budget
+    )
+    if document_budget is not None:
+        document_budget.remaining = local_budget.remaining
+        document_budget.truncated |= local_budget.truncated
+        document_budget.malformed |= local_budget.malformed
     return RuleRecord(
         name=str(meta.get("name") or name),
         namespace=str(meta.get("namespace") or "uncategorized"),
@@ -166,8 +178,8 @@ def _normalize_rule(
         evidence_addresses=tuple(evidence_addresses),
         matches=match_views,
         source_available=bool(source.strip()),
-        evidence_truncated=budget.truncated,
-        evidence_malformed=budget.malformed,
+        evidence_truncated=local_budget.truncated,
+        evidence_malformed=local_budget.malformed,
     )
 
 
@@ -190,8 +202,10 @@ def load_document(
     raw = _read_bytes(input_path)
     try:
         root = decode_json(raw)
-    except UnicodeDecodeError as exc:
-        raise DocumentError(f"input is not UTF-8 JSON: {input_path}") from exc
+    except UnicodeError as exc:
+        raise DocumentError(
+            f"input contains invalid Unicode or is not UTF-8 JSON: {input_path}"
+        ) from exc
     except RecursionError as exc:
         raise DocumentError(f"JSON nesting is too deep: {input_path}") from exc
     except json.JSONDecodeError as exc:

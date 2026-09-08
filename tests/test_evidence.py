@@ -8,8 +8,8 @@ from pathlib import Path
 from capagap.analysis import compare_documents
 from capagap.diagnostics import ValidationError, inspect_document
 from capagap.evidence import MAX_DEPTH, EvidenceBudget, parse_matches
-from capagap.html_report import render_html
-from capagap.io import DocumentError, _normalize_address, load_document
+from capagap.html_report import _match_trees, render_html
+from capagap.io import DocumentError, _normalize_address, _normalize_rule, load_document
 
 ROOT = Path(__file__).resolve().parents[1]
 HTTP = "communicate over HTTP"
@@ -110,6 +110,81 @@ class DocumentTestCase(unittest.TestCase):
 
 
 class EvidenceTests(DocumentTestCase):
+    def test_rule_completeness_does_not_inherit_another_rules_errors(self):
+        payload = rich_document()
+        bad, also_bad, healthy = list(payload["rules"])[:3]
+        for name in (bad, also_bad):
+            payload["rules"][name]["matches"][0][1]["node"]["type"] = []
+        forward = self.load(payload)
+        payload["rules"] = dict(reversed(list(payload["rules"].items())))
+        backward = self.load(payload)
+        self.assertEqual(
+            forward.rules[healthy].evidence_dict(),
+            backward.rules[healthy].evidence_dict(),
+        )
+        self.assertTrue(forward.rules[healthy].evidence_dict()["complete"])
+        for document in (forward, backward):
+            self.assertTrue(document.provenance["evidence_malformed"])
+            for name in (bad, also_bad):
+                self.assertTrue(document.rules[name].evidence_malformed)
+
+    def test_per_rule_flags_keep_the_document_wide_node_limit(self):
+        budget = EvidenceBudget(remaining=4)
+        raw = rich_document()["rules"][HTTP]
+        first = _normalize_rule(HTTP, raw, budget=budget)
+        second = _normalize_rule(HTTP, raw, budget=budget)
+        self.assertFalse(first.evidence_truncated)
+        self.assertTrue(second.evidence_truncated)
+        self.assertTrue(budget.truncated)
+        self.assertEqual(budget.remaining, 0)
+
+    def test_threshold_statements_show_their_counts(self):
+        for count, label in (
+            (0, "optional (0 or more)"),
+            (1, "some: at least 1"),
+            (2, "some: at least 2"),
+        ):
+            raw = rich_document()
+            raw["rules"][HTTP]["matches"][0][1]["node"] = {
+                "type": "statement",
+                "statement": {"type": "some", "count": count},
+            }
+            rule = self.load(raw).rules[HTTP]
+            self.assertEqual(rule.matches[0]["tree"]["label"], label)
+            self.assertIn(label, _match_trees(rule))
+
+    def test_invalid_threshold_is_labeled_unknown_and_malformed(self):
+        for count in (None, [], -1, True, "2"):
+            raw = rich_document()
+            raw["rules"][HTTP]["matches"][0][1]["node"] = {
+                "type": "statement",
+                "statement": {"type": "some", "count": count},
+            }
+            rule = self.load(raw).rules[HTTP]
+            self.assertTrue(rule.evidence_malformed)
+            self.assertIn("threshold not recorded", _match_trees(rule))
+
+    def test_each_compact_location_and_capture_limit_has_an_omission_notice(self):
+        for kind in ("locations", "capture-keys", "capture-locations"):
+            raw = rich_document()
+            node = raw["rules"][HTTP]["matches"][0][1]
+            addresses = [
+                {"type": "absolute", "value": 0x407000 + index} for index in range(9)
+            ]
+            if kind == "locations":
+                node["locations"] = addresses
+            elif kind == "capture-keys":
+                node["captures"] = {
+                    f"capture {index}": [addresses[index]] for index in range(9)
+                }
+            else:
+                node["captures"] = {"capture": addresses}
+            rule = self.load(raw).rules[HTTP]
+            self.assertTrue(rule.evidence_dict()["complete"])
+            self.assertIn("omits detail", _match_trees(rule))
+            self.assertNotIn("0x407008", _match_trees(rule))
+            self.assertIn("0x407008", json.dumps(rule.evidence_dict()))
+
     def test_preserves_feature_and_branch_states(self):
         document = self.load(rich_document())
         tree = document.rules[HTTP].matches[0]["tree"]

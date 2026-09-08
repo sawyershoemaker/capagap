@@ -221,6 +221,12 @@ def _context(report: dict, view: dict, shared: set[str]) -> dict:
     ]:
         if not isinstance(source, dict):
             raise DiffError("invalid source provenance")
+        if label == "static":
+            base = source.get("base_address")
+            if base is not None and (type(base) is not int or base < 0):
+                raise DiffError("invalid static image base")
+            context["static:base_address"] = base
+            context["static:base_address_recorded"] = "base_address" in source
         for key in (
             "sample_sha256",
             "capa_version",
@@ -263,6 +269,17 @@ def _context(report: dict, view: dict, shared: set[str]) -> dict:
     context["sample_sha256"] = view["sample"].lower()
     context["confidence"] = view["metadata"].get("confidence")
     if view["kind"] == "matrix":
+        baseline = view["metadata"].get("experiment_baseline")
+        if baseline is not None and (
+            not isinstance(baseline, str) or baseline not in view["labels"]
+        ):
+            raise DiffError("invalid experiment baseline")
+        context["experiment_baseline"] = baseline
+        # Appending a run is a run-set change; reordering shared runs changes
+        # incremental contributions even if their observations are identical.
+        context["shared_run_order"] = [
+            label for label in view["labels"] if label in shared
+        ]
         runs = report.get("runs", [])
         if not isinstance(runs, list) or any(
             not isinstance(run, dict)
@@ -311,6 +328,20 @@ def compare_reports(
         if context_old.get(key) != context_new.get(key)
     ]
     warnings = []
+    if (
+        not context_old["static:base_address_recorded"]
+        or not context_new["static:base_address_recorded"]
+    ):
+        warnings.append(
+            "A report lacks image-base provenance; equivalence of portable addresses is unverified."
+        )
+    if old["kind"] == "matrix" and (
+        context_old["experiment_baseline"] is None
+        or context_new["experiment_baseline"] is None
+    ):
+        warnings.append(
+            "A report lacks an experiment baseline; baseline equivalence is unverified."
+        )
     if not same_sample:
         warnings.append(
             "Sample identity is unverified or different; changes are not attributed to behavior."

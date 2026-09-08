@@ -22,7 +22,10 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.14"
-      - run: python -m pip install -e ".[dev]"
+      - run: python -m pip install -e ".[dev,browser]"
+      - run: python -m playwright install --with-deps chromium
+      - name: Verify offline report exports and interactions
+        run: python scripts/browser_check.py
       - name: Check and build the release
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}

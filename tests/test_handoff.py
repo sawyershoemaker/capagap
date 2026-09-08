@@ -35,6 +35,24 @@ MATRIX = compare_matrix(STATIC, (("baseline", BASELINE), ("interactive", INTERAC
 
 
 class HandoffBundleTests(unittest.TestCase):
+    def test_hotspots_are_derived_only_from_selected_findings(self):
+        for minimum in ("low", "high", "critical"):
+            for never_only in (False, True):
+                bundle = build_matrix_handoff(
+                    MATRIX, minimum_priority=minimum, never_only=never_only
+                )
+                selected = {finding["name"]: finding for finding in bundle["findings"]}
+                for hotspot in bundle["evidence_hotspots"]:
+                    self.assertTrue(set(hotspot["rule_names"]) <= selected.keys())
+                    self.assertEqual(
+                        hotspot["aggregate_priority"],
+                        sum(
+                            selected[name]["priority"] for name in hotspot["rule_names"]
+                        ),
+                    )
+                if not selected:
+                    self.assertEqual(bundle["evidence_hotspots"], [])
+
     def test_single_run_bundle_has_rebased_locations(self):
         bundle = build_single_handoff(SINGLE, run_label="baseline")
 
@@ -135,6 +153,45 @@ class HandoffWriterTests(unittest.TestCase):
 
 
 class ImporterContractTests(unittest.TestCase):
+    def test_comment_merging_only_replaces_owned_lines(self):
+        for name in ("ida", "binary_ninja"):
+            tree = ast.parse(
+                (ROOT / f"src/capagap/importers/{name}.py.tmpl").read_text()
+            )
+            functions = ast.Module(
+                body=[
+                    node
+                    for node in tree.body
+                    if isinstance(node, ast.FunctionDef)
+                    and node.name in {"_comment_marker", "_merge_comment"}
+                ],
+                type_ignores=[],
+            )
+            import re
+
+            namespace = {"re": re}
+            exec(compile(functions, name, "exec"), namespace)
+            merge = namespace["_merge_comment"]
+            marker = "[CapaGap:0123456789abcdef]"
+            original = f"Analyst: cross-reference {marker} before deleting this note.\n{marker} old\n[CapaGap:other] keep"
+            updated = merge(original, [marker + " new"])
+            self.assertEqual(
+                updated, original.replace(marker + " old", marker + " new")
+            )
+            self.assertEqual(merge(updated, [marker + " new"]), updated)
+            for invalid in (
+                "not a marker",
+                "[CapaGap:] empty",
+                marker + "missing separator",
+                marker + " first\nsecond",
+                [marker],
+            ):
+                with (
+                    self.subTest(importer=name, invalid=invalid),
+                    self.assertRaises(ValueError),
+                ):
+                    merge(original, [invalid])
+
     def _write_bundle(self, directory: str, *, include_hash: bool = True) -> Path:
         bundle = deepcopy(build_single_handoff(SINGLE, run_label="baseline"))
         if not include_hash:
@@ -281,7 +338,8 @@ class ImporterContractTests(unittest.TestCase):
 
             comments = {0x904000: "analyst note"}
             view = SimpleNamespace(
-                start=0x900000,
+                start=0x901000,
+                image_base=0x900000,
                 file=SimpleNamespace(
                     original_filename=str(Path(directory) / "missing.bin")
                 ),
@@ -302,6 +360,25 @@ class ImporterContractTests(unittest.TestCase):
             self.assertEqual(comments[0x904000].count("[CapaGap:"), 1)
             self.assertIn("triage: likely", comments[0x904000])
             self.assertEqual(set(comments), {0x904000, 0x904100, 0x905000})
+            comments.clear()
+            view.image_base = 0xA00000
+            view.get_segment_at = lambda address: (
+                object() if address == 0xA04000 else None
+            )
+            callback(view)
+            self.assertEqual(set(comments), {0xA04000})
+            comments.clear()
+            del view.image_base
+            callback(view)
+            self.assertEqual(comments, {})
+            view.image_base = 0xA00000
+            actual_file = Path(directory) / "synthetic-data.txt"
+            actual_file.write_text("not the expected sample", encoding="utf-8")
+            view.file.original_filename = str(actual_file)
+            reviewed["analysis"]["sample"]["sha256"] = "a" * 64
+            bundle_path.write_text(json.dumps(reviewed), encoding="utf-8")
+            callback(view)
+            self.assertEqual(comments, {})
 
 
 if __name__ == "__main__":

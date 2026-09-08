@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 
 import ida_bytes
 import ida_kernwin
@@ -17,12 +18,24 @@ def _load_bundle(path: str) -> dict:
     return bundle
 
 
+def _comment_marker(comment: str) -> str:
+    match = (
+        re.match(r"^\[CapaGap:[A-Za-z0-9_-]+\](?=\s|$)", comment)
+        if isinstance(comment, str)
+        else None
+    )
+    if match is None or "\n" in comment or "\r" in comment:
+        raise ValueError("invalid CapaGap comment marker or multiline comment")
+    return match.group(0)
+
+
 def _group_comments(bundle: dict) -> dict[int, list[str]]:
     grouped: dict[int, list[str]] = {}
     for finding in bundle.get("findings", []):
         comment = finding.get("comment", "")
         if not comment:
             continue
+        _comment_marker(comment)
         for location in finding.get("locations", []):
             rva = location.get("rva")
             if isinstance(rva, int) and not isinstance(rva, bool) and rva >= 0:
@@ -35,10 +48,12 @@ def _group_comments(bundle: dict) -> dict[int, list[str]]:
 def _merge_comment(existing: str | None, incoming: list[str]) -> str:
     lines = (existing or "").splitlines()
     for comment in incoming:
-        marker = comment.split("]", 1)[0] + "]"
+        marker = _comment_marker(comment)
         replaced = False
         for index, line in enumerate(lines):
-            if marker in line:
+            if line.startswith(marker) and (
+                len(line) == len(marker) or line[len(marker)].isspace()
+            ):
                 lines[index] = comment
                 replaced = True
                 break
@@ -53,11 +68,14 @@ def main() -> None:
         return
     try:
         bundle = _load_bundle(path)
+        grouped = _group_comments(bundle)
     except (OSError, ValueError, json.JSONDecodeError) as error:
         ida_kernwin.warning(f"CapaGap: could not load bundle:\n{error}")
         return
 
-    expected_hash = bundle.get("analysis", {}).get("sample", {}).get("sha256", "").lower()
+    expected_hash = (
+        bundle.get("analysis", {}).get("sample", {}).get("sha256", "").lower()
+    )
     raw_hash = ida_nalt.retrieve_input_file_sha256()
     actual_hash = raw_hash.hex().lower() if raw_hash else ""
     if expected_hash and actual_hash and expected_hash != actual_hash:
@@ -70,7 +88,7 @@ def main() -> None:
     image_base = ida_nalt.get_imagebase()
     imported = 0
     skipped = 0
-    for rva, comments in sorted(_group_comments(bundle).items()):
+    for rva, comments in sorted(grouped.items()):
         address = image_base + rva
         if not ida_bytes.is_loaded(address):
             skipped += 1

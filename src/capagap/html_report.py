@@ -131,6 +131,15 @@ def _match_trees(rule: RuleRecord) -> str:
         )
         label = str(node.get("label", "Unknown node"))
         description = node.get("details", {}).get("description", "")
+        if (
+            len(label) > 512
+            or len(node.get("locations", [])) > 8
+            or len(node.get("captures", {})) > 8
+            or any(
+                len(addresses) > 8 for addresses in node.get("captures", {}).values()
+            )
+        ):
+            omitted[0] = True
         locations = []
         for location in node.get("locations", [])[:8]:
             context = _location_context(location)
@@ -845,7 +854,7 @@ def _render(comparison: Comparison | MatrixComparison) -> str:
 <header class="appbar">
   <div class="brand"><span class="wordmark"><span>Capa</span>Gap</span>
     <span class="sample-name">{_e(sample_name)}</span></div>
-  <button class="button js-only" type="button" data-export>{_icon("download")}Export JSON</button>
+  <button class="button js-only" type="button" data-export="capagap-{"matrix" if matrix else "comparison"}.json">{_icon("download")}Export JSON</button>
 </header>
 <section class="sample-strip" aria-label="Sample and coverage summary">
   <div class="sample-metadata">{synthetic_label}

@@ -23,6 +23,7 @@ from capagap.io import DocumentError, load_document
 from capagap.manifest import load_ruleset_manifest
 from capagap.matrix import compare_matrix
 from capagap.models import MatrixComparison
+from capagap.output import write_text
 from capagap.render import (
     render_json,
     render_markdown,
@@ -138,10 +139,7 @@ def _write(args, payload, renderer, *, forbidden=()) -> int:
         else renderer(payload, markdown=args.format == "markdown")
     )
     if args.output:
-        if args.output.resolve() in {Path(path).resolve() for path in forbidden}:
-            raise CaseError("report output would overwrite an input")
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(report, encoding="utf-8")
+        write_text(args.output, report, forbidden=forbidden)
     else:
         sys.stdout.write(report)
     return 0
@@ -344,6 +342,8 @@ def run_workflow(args) -> int:
             run_label=case["runs"][0]["label"],
             minimum_priority=args.minimum_priority,
         )
-    for path in write_handoff(bundle, args.output, tool=args.tool, force=args.force):
+    for path in write_handoff(
+        bundle, args.output, tool=args.tool, force=args.force, forbidden=protected
+    ):
         print(path.resolve())
     return 0

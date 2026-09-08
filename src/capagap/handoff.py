@@ -10,7 +10,9 @@ from pathlib import Path
 from typing import Any
 
 from capagap import __version__
+from capagap.hotspots import build_evidence_hotspots
 from capagap.models import Comparison, Finding, MatrixComparison, MatrixFinding
+from capagap.output import check_output, write_text
 from capagap.triage import build_triage_worksheet
 
 SCHEMA_NAME = "capagap-handoff"
@@ -221,7 +223,10 @@ def _bundle(
         },
         "findings": serialized,
         "evidence_hotspots": [
-            hotspot.to_dict() for hotspot in comparison.evidence_hotspots
+            hotspot.to_dict()
+            for hotspot in build_evidence_hotspots(
+                selected, comparison.static.base_address
+            )
         ],
     }
 
@@ -359,6 +364,7 @@ def write_handoff(
     *,
     tool: str = "all",
     force: bool = False,
+    forbidden: Iterable[str | Path] = (),
 ) -> tuple[Path, ...]:
     """Write a bundle and requested importers without silent overwrites."""
 
@@ -381,6 +387,9 @@ def write_handoff(
         payloads[output_name] = _read_template(template_name)
 
     targets = tuple(output / name for name in payloads)
+    protected = tuple(forbidden)
+    for path in targets:
+        check_output(path, protected)
     conflicts = tuple(path for path in targets if path.exists())
     if conflicts and not force:
         names = ", ".join(path.name for path in conflicts)
@@ -391,7 +400,7 @@ def write_handoff(
     try:
         output.mkdir(parents=True, exist_ok=True)
         for path, content in zip(targets, payloads.values(), strict=True):
-            path.write_text(content, encoding="utf-8", newline="\n")
+            write_text(path, content, forbidden=protected)
     except OSError as exc:
         raise HandoffError(f"could not write handoff bundle: {exc}") from exc
     return targets

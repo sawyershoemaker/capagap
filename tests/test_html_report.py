@@ -55,6 +55,23 @@ class ReportDOM(HTMLParser):
 
 
 class HTMLReportTests(unittest.TestCase):
+    def test_export_name_is_explicit_and_payload_is_not_reserialized(self):
+        for result, render, name in (
+            (SINGLE, render_html, "comparison"),
+            (MATRIX, render_matrix_html, "matrix"),
+        ):
+            dom = ReportDOM(render(result))
+            self.assertEqual(
+                dom.with_attr("data-export")[0]["data-export"], f"capagap-{name}.json"
+            )
+            handler = (
+                dom.scripts[1]
+                .split('select("[data-export]").addEventListener')[1]
+                .split("let printState")[0]
+            )
+            self.assertNotIn("JSON.parse", handler)
+            self.assertNotIn("JSON.stringify", handler)
+
     def test_single_and_matrix_use_the_same_offline_controls(self):
         for report, expected in (
             (render_html(SINGLE), 6),

@@ -31,6 +31,7 @@ Documentation = "https://github.com/sawyershoemaker/capagap/blob/main/docs/CLI.m
 
 [project.optional-dependencies]
 dev = ["build>=1.2", "ruff>=0.12", "twine>=6.1"]
+browser = ["playwright>=1.55"]
 
 [project.scripts]
 capagap = "capagap.cli:main"

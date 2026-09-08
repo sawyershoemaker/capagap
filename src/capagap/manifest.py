@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from capagap import __version__
+from capagap.jsonio import decode_json, read_json
 
 SCHEMA_NAME = "capagap-ruleset-manifest"
 SCHEMA_VERSION = 1
@@ -99,8 +100,8 @@ def _yaml_scalar(raw: str, *, path: Path, field: str) -> str:
         raise ManifestError(f"{path}: rule metadata {field} cannot be empty")
     if value.startswith('"'):
         try:
-            parsed = json.loads(value)
-        except json.JSONDecodeError as exc:
+            parsed = decode_json(value.encode("utf-8"))
+        except (ValueError, RecursionError) as exc:
             raise ManifestError(f"{path}: invalid quoted {field}") from exc
         if not isinstance(parsed, str):
             raise ManifestError(f"{path}: rule metadata {field} must be a string")
@@ -254,6 +255,8 @@ def build_ruleset_manifest(root: str | Path) -> RuleManifest:
             source = path.read_text(encoding="utf-8-sig")
         except OSError as exc:
             raise ManifestError(f"could not read rule file {path}: {exc}") from exc
+        except UnicodeError as exc:
+            raise ManifestError(f"rule file is not UTF-8: {path}") from exc
         entry = _parse_rule(source, path, relative)
         if entry is None:
             skipped.append(relative)
@@ -278,11 +281,7 @@ def build_ruleset_manifest(root: str | Path) -> RuleManifest:
 
 def _read_json(path: Path) -> Any:
     try:
-        if path.stat().st_size > MAX_MANIFEST_BYTES:
-            raise ManifestError(
-                f"manifest exceeds {MAX_MANIFEST_BYTES // (1024 * 1024)} MiB"
-            )
-        return json.loads(path.read_text(encoding="utf-8-sig"))
+        return read_json(path, MAX_MANIFEST_BYTES)
     except FileNotFoundError as exc:
         raise ManifestError(f"manifest does not exist: {path}") from exc
     except OSError as exc:
@@ -291,6 +290,8 @@ def _read_json(path: Path) -> Any:
         raise ManifestError(
             f"invalid manifest JSON at line {exc.lineno}, column {exc.colno}"
         ) from exc
+    except (ValueError, RecursionError) as exc:
+        raise ManifestError(f"invalid manifest JSON: {exc}") from exc
 
 
 def load_ruleset_manifest(path: str | Path) -> RuleManifest:
@@ -298,7 +299,11 @@ def load_ruleset_manifest(path: str | Path) -> RuleManifest:
     payload = _read_json(manifest_path)
     if not isinstance(payload, dict):
         raise ManifestError("ruleset manifest root must be an object")
-    if payload.get("schema") != SCHEMA_NAME or payload.get("schema_version") != 1:
+    if (
+        payload.get("schema") != SCHEMA_NAME
+        or type(payload.get("schema_version")) is not int
+        or payload["schema_version"] != 1
+    ):
         raise ManifestError("unsupported ruleset manifest schema")
     raw_rules = payload.get("rules")
     if not isinstance(raw_rules, list):
@@ -349,6 +354,10 @@ def load_ruleset_manifest(path: str | Path) -> RuleManifest:
         str(source.get("name") or "unknown") if isinstance(source, dict) else "unknown"
     )
     skipped = source.get("skipped_files", []) if isinstance(source, dict) else []
+    if not isinstance(skipped, list) or any(
+        not isinstance(value, str) for value in skipped
+    ):
+        raise ManifestError("manifest skipped_files must be an array of paths")
     return RuleManifest(
         path=manifest_path.resolve(),
         source_name=source_name,

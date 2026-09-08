@@ -49,6 +49,14 @@ def _coverage(comparison: Comparison) -> str:
     return "n/a" if value is None else f"{value:.1%}"
 
 
+def _empty_never_observed(comparison: MatrixComparison) -> str:
+    if not comparison.findings:
+        return "No comparable static capabilities."
+    if comparison.never_observed:
+        return "No never-observed capabilities meet this priority threshold."
+    return "The union of runs observed every comparable static capability."
+
+
 def _short_hash(value: str) -> str:
     return value if len(value) <= 20 else value[:16] + "..."
 
@@ -396,9 +404,7 @@ def render_matrix_text(
         for index, item in enumerate(never, 1):
             lines.append(f"  {index}. {item.rule.name}: {item.action}")
     else:
-        lines.append(
-            "  None at this threshold; the union of runs observed every comparable capability."
-        )
+        lines.append("  " + _empty_never_observed(comparison))
 
     if comparison.environment_sensitive:
         lines.extend(["", "Environment-sensitive behavior deltas"])
@@ -528,9 +534,7 @@ def render_matrix_markdown(
                 f"- **{_md_escape(item.rule.name)}** ({item.priority_label}, {item.priority}): {_md_escape(item.action)}"
             )
     else:
-        lines.append(
-            "The union of runs observed every comparable static capability at this priority threshold."
-        )
+        lines.append(_empty_never_observed(comparison))
 
     if comparison.environment_sensitive:
         lines.extend(["", "## Environment-sensitive deltas", ""])

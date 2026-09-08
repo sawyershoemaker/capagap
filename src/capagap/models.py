@@ -126,6 +126,7 @@ class CapaDocument:
             "format": self.format,
             "os": self.os,
             "arch": self.arch,
+            "base_address": self.base_address,
             "input": str(self.path),
         }
 

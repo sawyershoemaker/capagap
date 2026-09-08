@@ -9,6 +9,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from capagap.jsonio import read_json
+
 TRIAGE_SCHEMA = "capagap-triage"
 TRIAGE_SCHEMA_VERSION = 1
 HANDOFF_SCHEMA = "capagap-handoff"
@@ -31,9 +33,7 @@ class TriageError(ValueError):
 def _load_json(path: str | Path, label: str) -> dict[str, Any]:
     source = Path(path)
     try:
-        if source.stat().st_size > MAX_JSON_BYTES:
-            raise TriageError(f"{label} exceeds 64 MiB")
-        payload = json.loads(source.read_text(encoding="utf-8-sig"))
+        payload = read_json(source, MAX_JSON_BYTES)
     except FileNotFoundError as exc:
         raise TriageError(f"{label} does not exist: {source}") from exc
     except OSError as exc:
@@ -42,14 +42,24 @@ def _load_json(path: str | Path, label: str) -> dict[str, Any]:
         raise TriageError(
             f"invalid {label} JSON at line {exc.lineno}, column {exc.colno}"
         ) from exc
+    except (ValueError, RecursionError) as exc:
+        raise TriageError(f"invalid {label} JSON: {exc}") from exc
     if not isinstance(payload, dict):
         raise TriageError(f"{label} root must be an object")
     return payload
 
 
 def load_handoff(path: str | Path) -> dict[str, Any]:
-    payload = _load_json(path, "handoff")
-    if payload.get("schema") != HANDOFF_SCHEMA or payload.get("schema_version") != 1:
+    return _validate_handoff(_load_json(path, "handoff"))
+
+
+def _validate_handoff(payload: dict[str, Any]) -> dict[str, Any]:
+    if (
+        not isinstance(payload, dict)
+        or payload.get("schema") != HANDOFF_SCHEMA
+        or type(payload.get("schema_version")) is not int
+        or payload["schema_version"] != 1
+    ):
         raise TriageError("unsupported handoff schema")
     findings = payload.get("findings")
     analysis = payload.get("analysis")
@@ -73,6 +83,10 @@ def load_handoff(path: str | Path) -> dict[str, Any]:
             finding.get("comment", ""), str
         ):
             raise TriageError(f"handoff finding {finding_id!r} has invalid text")
+        if "triage" in finding:
+            _validate_review_fields(
+                finding["triage"], f"handoff finding {finding_id!r} triage"
+            )
         seen.add(finding_id)
     return payload
 
@@ -89,8 +103,7 @@ def _handoff_identity(bundle: dict[str, Any]) -> str:
 def build_triage_worksheet(bundle: dict[str, Any]) -> dict[str, Any]:
     """Create an editable worksheet bound to one exact handoff finding set."""
 
-    if bundle.get("schema") != HANDOFF_SCHEMA or bundle.get("schema_version") != 1:
-        raise TriageError("unsupported handoff schema")
+    _validate_handoff(bundle)
     reviews = []
     for finding in bundle.get("findings", []):
         reviews.append(
@@ -114,8 +127,27 @@ def build_triage_worksheet(bundle: dict[str, Any]) -> dict[str, Any]:
 
 
 def load_triage(path: str | Path) -> dict[str, Any]:
-    payload = _load_json(path, "triage worksheet")
-    if payload.get("schema") != TRIAGE_SCHEMA or payload.get("schema_version") != 1:
+    return _validate_triage(_load_json(path, "triage worksheet"))
+
+
+def _validate_review_fields(review: dict[str, Any], label: str) -> None:
+    if not isinstance(review, dict):
+        raise TriageError(f"{label} must be an object")
+    disposition = review.get("disposition")
+    if not isinstance(disposition, str) or disposition not in DISPOSITIONS:
+        raise TriageError(f"{label} has invalid disposition {disposition!r}")
+    for field in ("analyst_notes", "evidence", "reviewer", "reviewed_at"):
+        if not isinstance(review.get(field, ""), str):
+            raise TriageError(f"{label} field {field!r} must be text")
+
+
+def _validate_triage(payload: dict[str, Any]) -> dict[str, Any]:
+    if (
+        not isinstance(payload, dict)
+        or payload.get("schema") != TRIAGE_SCHEMA
+        or type(payload.get("schema_version")) is not int
+        or payload["schema_version"] != 1
+    ):
         raise TriageError("unsupported triage worksheet schema")
     if not isinstance(payload.get("handoff_identity"), str):
         raise TriageError("triage worksheet has no valid handoff identity")
@@ -127,20 +159,11 @@ def load_triage(path: str | Path) -> dict[str, Any]:
         if not isinstance(review, dict):
             raise TriageError(f"triage review {index} must be an object")
         finding_id = review.get("id")
-        disposition = review.get("disposition")
         if not isinstance(finding_id, str) or not finding_id:
             raise TriageError(f"triage review {index} has no valid id")
         if finding_id in seen:
             raise TriageError(f"duplicate triage review id: {finding_id}")
-        if disposition not in DISPOSITIONS:
-            raise TriageError(
-                f"triage review {finding_id!r} has invalid disposition {disposition!r}"
-            )
-        for field in ("analyst_notes", "evidence", "reviewer", "reviewed_at"):
-            if not isinstance(review.get(field, ""), str):
-                raise TriageError(
-                    f"triage review {finding_id!r} field {field!r} must be text"
-                )
+        _validate_review_fields(review, f"triage review {finding_id!r}")
         seen.add(finding_id)
     return payload
 
@@ -150,6 +173,8 @@ def _one_line(value: str) -> str:
 
 
 def apply_triage(bundle: dict[str, Any], worksheet: dict[str, Any]) -> dict[str, Any]:
+    _validate_handoff(bundle)
+    _validate_triage(worksheet)
     if worksheet.get("handoff_identity") != _handoff_identity(bundle):
         raise TriageError("triage worksheet does not belong to this handoff")
     findings = {finding["id"]: finding for finding in bundle["findings"]}
@@ -195,10 +220,16 @@ def apply_triage(bundle: dict[str, Any], worksheet: dict[str, Any]) -> dict[str,
 def render_triage_report(
     bundle: dict[str, Any], worksheet: dict[str, Any], *, markdown: bool = False
 ) -> str:
-    if worksheet.get("handoff_identity") != _handoff_identity(bundle):
-        raise TriageError("triage worksheet does not belong to this handoff")
-    names = {finding["id"]: finding.get("name", "") for finding in bundle["findings"]}
-    counts = Counter(review["disposition"] for review in worksheet["reviews"])
+    reviewed = apply_triage(bundle, worksheet)
+    reviews = [
+        {
+            **finding.get("triage", {"disposition": "unreviewed"}),
+            "id": finding["id"],
+            "name": finding.get("name", ""),
+        }
+        for finding in reviewed["findings"]
+    ]
+    counts = Counter(review["disposition"] for review in reviews)
     if markdown:
         lines = [
             "# CapaGap triage review",
@@ -211,11 +242,9 @@ def render_triage_report(
         ]
         lines.extend(f"| {key} | {value} |" for key, value in sorted(counts.items()))
         lines.extend(["", "## Findings", ""])
-        for review in worksheet["reviews"]:
+        for review in reviews:
             note = review.get("analyst_notes") or "-"
-            lines.append(
-                f"- **{names.get(review['id'], review['id'])}** — {review['disposition']}: {note}"
-            )
+            lines.append(f"- **{review['name']}** — {review['disposition']}: {note}")
         return "\n".join(lines) + "\n"
 
     lines = [
@@ -228,11 +257,9 @@ def render_triage_report(
     ]
     lines.extend(f"  {key}: {value}" for key, value in sorted(counts.items()))
     lines.extend(["", "Findings"])
-    for review in worksheet["reviews"]:
+    for review in reviews:
         note = _one_line(review.get("analyst_notes", "")) or "-"
-        lines.append(
-            f"  [{review['disposition']}] {names.get(review['id'], review['id'])}: {note}"
-        )
+        lines.append(f"  [{review['disposition']}] {review['name']}: {note}")
     return "\n".join(lines) + "\n"
 
 

@@ -33,6 +33,7 @@
             "cape-report.json",
             "-j"
           ],
+          "base_address": null,
           "capa_version": "9.4.0",
           "content_sha256": "1902bc08c68e640d246aa109affb89c7ec638634aa0aee13335fcfdc7d18987e",
           "counts_invalid": false,
@@ -59,6 +60,7 @@
             "interactive-cape-report.json",
             "-j"
           ],
+          "base_address": null,
           "capa_version": "9.4.0",
           "content_sha256": "777a893495557f4316f918bd52ceb665b50826070d2f18306af37f437dd114f8",
           "counts_invalid": false,
@@ -86,6 +88,7 @@
           "demo.exe",
           "-j"
         ],
+        "base_address": 4194304,
         "capa_version": "9.4.0",
         "content_sha256": "6c38ace9f117747a9447a542d652032b9c98d1409fa715b636b8982ac8eb2f73",
         "counts_invalid": false,
@@ -748,7 +751,7 @@
   ],
   "generator": {
     "name": "capagap",
-    "version": "0.2.0"
+    "version": "0.2.1"
   },
   "schema": "capagap-handoff",
   "schema_version": 1,

@@ -145,6 +145,13 @@ def parse_matches(
         if name == "subscope":
             value = clean.get("scope")
         label = name if value is None else f"{name}: {value}"
+        if name == "some":
+            count = clean.get("count")
+            if type(count) is not int or count < 0:
+                label = "some: threshold not recorded"
+                budget.malformed = True
+            else:
+                label = f"some: at least {count}" if count else "optional (0 or more)"
         if name == "range":
             label = f"count: {clean.get('min', '?')} to {clean.get('max', '?')} · {clean.get('child', '')}"
         success = raw.get("success")

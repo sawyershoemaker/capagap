@@ -230,6 +230,74 @@ class CaseTests(WorkflowTestCase):
 
 
 class DiffTests(WorkflowTestCase):
+    def test_reordered_shared_runs_change_context_not_observations(self):
+        runs = [("a", self.dynamic), ("b", self.dynamic), ("c", self.dynamic)]
+        before = compare_matrix(self.static, runs).to_dict()
+        for reordered in ([runs[1], runs[0], runs[2]], [runs[0], runs[2], runs[1]]):
+            after = compare_matrix(self.static, reordered).to_dict()
+            result = compare_reports(before, after)
+            self.assertTrue(result["changed"])
+            self.assertEqual(result["changes"], [])
+            self.assertIn(
+                "shared_run_order",
+                {change["field"] for change in result["context_changes"]},
+            )
+            self.assertEqual(
+                "experiment_baseline"
+                in {change["field"] for change in result["context_changes"]},
+                reordered[0] != runs[0],
+            )
+            old_path, new_path = self.root / "before.json", self.root / "after.json"
+            old_path.write_text(json.dumps(before), encoding="utf-8")
+            new_path.write_text(json.dumps(after), encoding="utf-8")
+            self.assertEqual(
+                self.cli("diff", old_path, new_path, "--fail-on-change")[0], 3
+            )
+
+    def test_changed_image_base_is_context_even_with_identical_va_evidence(self):
+        before = self.single()
+        after = self.single(
+            static=replace(self.static, base_address=self.static.base_address + 4096)
+        )
+        result = compare_reports(before, after)
+        self.assertTrue(result["changed"])
+        self.assertIn(
+            "static:base_address",
+            {change["field"] for change in result["context_changes"]},
+        )
+        self.assertEqual(result["changes"], [])
+        self.assertNotEqual(
+            before["evidence_hotspots"][0]["rva"], after["evidence_hotspots"][0]["rva"]
+        )
+
+    def test_legacy_image_base_is_unverified_not_equivalent_to_absent_base(self):
+        before = self.single(static=replace(self.static, base_address=None))
+        legacy = copy.deepcopy(before)
+        legacy["provenance"]["static"].pop("base_address")
+        result = compare_reports(legacy, before)
+        self.assertTrue(result["changed"])
+        self.assertIn(
+            "static:base_address_recorded",
+            {change["field"] for change in result["context_changes"]},
+        )
+        self.assertTrue(
+            any("image-base provenance" in warning for warning in result["warnings"])
+        )
+        self.assertFalse(compare_reports(legacy, legacy)["changed"])
+
+    def test_invalid_base_and_baseline_are_rejected(self):
+        for value in ([], True, -1, "0x400000"):
+            report = self.single()
+            report["provenance"]["static"]["base_address"] = value
+            with self.subTest(value=value), self.assertRaises(DiffError):
+                compare_reports(report, report)
+        matrix = compare_matrix(
+            self.static, [("a", self.dynamic), ("b", self.dynamic)]
+        ).to_dict()
+        matrix["matrix"]["experiment_baseline"] = "unknown"
+        with self.assertRaisesRegex(DiffError, "baseline"):
+            compare_reports(matrix, matrix)
+
     def test_malformed_source_identity_and_analysis_type_fail_cleanly(self):
         report = self.single()
         for key, value in (("source_digest", 123), ("source_available", "yes")):

@@ -97,7 +97,7 @@ A case copies the result JSON into a portable directory and pins its hashes, run
 capagap diff before.json after.json --format markdown --output reports/diff.md
 ```
 
-Inputs are CapaGap JSON reports, including the HTML report's JSON export. The diff separates rule-source changes, extraction settings, added or removed runs, and changed observations in shared runs. Use stable run labels across reports. Missing provenance is reported as unverified, not assumed equivalent. Add `--fail-on-change` for a nonzero exit code when something changes.
+Inputs are CapaGap JSON reports, including the HTML report's JSON export. The diff separates rule-source changes, analysis context (including image base and baseline), added or removed runs, and changed observations in shared runs. Use stable run labels across reports. Missing provenance is reported as unverified, not assumed equivalent. Add `--fail-on-change` for a nonzero exit code when something changes.
 
 ### Check run value and input quality
 
@@ -152,6 +152,16 @@ python scripts/release_check.py
 ```
 
 The release check runs lint, formatting checks, tests, package builds, metadata validation, and a clean-environment install test. It does not publish anything. The output directory must be empty; use `--outdir path/to/empty-directory` to keep an existing build.
+
+For browser checks:
+
+```sh
+python -m pip install -e ".[browser]"
+python -m playwright install chromium
+python scripts/browser_check.py
+```
+
+These check report interactions, layout, and lossless JSON downloads, including 64-bit addresses. Use `--outdir path/to/empty-directory` to retain screenshots and results, or `--channel chrome` to use an installed Chrome. The browser check runs separately in CI and before release builds in the publish workflow.
 
 The version is defined in `src/capagap/__init__.py`. Release tags use `v` followed by that version.
 

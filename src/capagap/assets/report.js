@@ -186,11 +186,11 @@
 
   select("[data-export]").addEventListener("click", () => {
     try {
-      const data = JSON.parse(select("#report-data").textContent);
-      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2) + "\n"], { type: "application/json" }));
+      const data = select("#report-data").textContent;
+      const url = URL.createObjectURL(new Blob([data + "\n"], { type: "application/json" }));
       const link = document.createElement("a");
       link.href = url;
-      link.download = data.runs ? "capagap-matrix.json" : "capagap-comparison.json";
+      link.download = select("[data-export]").dataset.export;
       document.body.append(link);
       link.click();
       link.remove();

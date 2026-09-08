@@ -28,6 +28,28 @@ MATRIX = compare_matrix(STATIC, (("baseline", BASELINE), ("interactive", INTERAC
 
 
 class MatrixComparisonTests(unittest.TestCase):
+    def test_empty_priority_filter_does_not_claim_complete_coverage(self):
+        for render in (render_matrix_text, render_matrix_markdown):
+            text = render(MATRIX, minimum_priority="critical")
+            self.assertIn(
+                "No never-observed capabilities meet this priority threshold.", text
+            )
+            self.assertNotIn("observed every comparable", text)
+
+    def test_empty_and_complete_matrices_have_distinct_messages(self):
+        empty = compare_matrix(
+            replace(STATIC, rules={}), (("a", BASELINE), ("b", INTERACTIVE))
+        )
+        complete_dynamic = replace(BASELINE, rules=STATIC.rules)
+        complete = compare_matrix(
+            STATIC, (("a", complete_dynamic), ("b", complete_dynamic))
+        )
+        for render in (render_matrix_text, render_matrix_markdown):
+            self.assertIn("No comparable static capabilities.", render(empty))
+            self.assertIn(
+                "observed every comparable static capability.", render(complete)
+            )
+
     def test_calculates_union_coverage(self):
         self.assertEqual(MATRIX.summary.run_count, 2)
         self.assertEqual(MATRIX.summary.comparable_static_rules, 4)

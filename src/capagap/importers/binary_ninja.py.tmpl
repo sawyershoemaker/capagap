@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 
 from binaryninja import PluginCommand, log_error, log_info, log_warn
@@ -26,12 +27,24 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _comment_marker(comment: str) -> str:
+    match = (
+        re.match(r"^\[CapaGap:[A-Za-z0-9_-]+\](?=\s|$)", comment)
+        if isinstance(comment, str)
+        else None
+    )
+    if match is None or "\n" in comment or "\r" in comment:
+        raise ValueError("invalid CapaGap comment marker or multiline comment")
+    return match.group(0)
+
+
 def _group_comments(bundle: dict) -> dict[int, list[str]]:
     grouped: dict[int, list[str]] = {}
     for finding in bundle.get("findings", []):
         comment = finding.get("comment", "")
         if not comment:
             continue
+        _comment_marker(comment)
         for location in finding.get("locations", []):
             rva = location.get("rva")
             if isinstance(rva, int) and not isinstance(rva, bool) and rva >= 0:
@@ -44,10 +57,12 @@ def _group_comments(bundle: dict) -> dict[int, list[str]]:
 def _merge_comment(existing: str | None, incoming: list[str]) -> str:
     lines = (existing or "").splitlines()
     for comment in incoming:
-        marker = comment.split("]", 1)[0] + "]"
+        marker = _comment_marker(comment)
         replaced = False
         for index, line in enumerate(lines):
-            if marker in line:
+            if line.startswith(marker) and (
+                len(line) == len(marker) or line[len(marker)].isspace()
+            ):
                 lines[index] = comment
                 replaced = True
                 break
@@ -63,12 +78,15 @@ def import_handoff(binary_view) -> None:
     path = selected.decode() if isinstance(selected, bytes) else selected
     try:
         bundle = _load_bundle(path)
+        grouped = _group_comments(bundle)
     except (OSError, ValueError, json.JSONDecodeError) as error:
         log_error(f"CapaGap: could not load bundle: {error}")
         show_message_box("CapaGap import failed", str(error))
         return
 
-    expected_hash = bundle.get("analysis", {}).get("sample", {}).get("sha256", "").lower()
+    expected_hash = (
+        bundle.get("analysis", {}).get("sample", {}).get("sha256", "").lower()
+    )
     original_path = Path(binary_view.file.original_filename)
     if expected_hash and original_path.is_file():
         try:
@@ -85,10 +103,19 @@ def import_handoff(binary_view) -> None:
                 show_message_box("CapaGap import blocked", message)
                 return
 
-    image_base = binary_view.start
+    image_base = getattr(binary_view, "image_base", None)
+    if (
+        not isinstance(image_base, int)
+        or isinstance(image_base, bool)
+        or image_base < 0
+    ):
+        message = "Current image base is unavailable; no comments were imported. This plugin requires BinaryView.image_base."
+        log_error("CapaGap: " + message)
+        show_message_box("CapaGap import blocked", message)
+        return
     imported = 0
     skipped = 0
-    for rva, comments in sorted(_group_comments(bundle).items()):
+    for rva, comments in sorted(grouped.items()):
         address = image_base + rva
         if binary_view.get_segment_at(address) is None:
             skipped += 1

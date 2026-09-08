@@ -26,6 +26,7 @@ from capagap.manifest import (
     write_ruleset_manifest,
 )
 from capagap.matrix import compare_matrix
+from capagap.output import write_text
 from capagap.render import (
     render_json,
     render_markdown,
@@ -324,18 +325,15 @@ def _write_report(args: argparse.Namespace, report: str) -> int:
                 getattr(args, "static", None),
                 getattr(args, "dynamic", None),
                 getattr(args, "ruleset_manifest", None),
+                getattr(args, "handoff", None),
+                getattr(args, "worksheet", None),
             ]
             inputs.extend(path for _, path in getattr(args, "run", []))
-            if args.output.resolve() in {
-                Path(path).resolve() for path in inputs if path is not None
-            }:
-                print(
-                    "capagap: error: report output would overwrite an input",
-                    file=sys.stderr,
-                )
-                return 2
-            args.output.parent.mkdir(parents=True, exist_ok=True)
-            args.output.write_text(report, encoding="utf-8")
+            write_text(
+                args.output,
+                report,
+                forbidden=(path for path in inputs if path is not None),
+            )
         except OSError as exc:
             print(
                 f"capagap: error: could not write {args.output}: {exc}", file=sys.stderr
@@ -490,6 +488,11 @@ def main(argv: list[str] | None = None) -> int:
                 args.output,
                 tool=args.tool,
                 force=args.force,
+                forbidden=(
+                    args.static,
+                    *(path for _, path in args.run),
+                    *((args.ruleset_manifest,) if args.ruleset_manifest else ()),
+                ),
             )
             summary = bundle["summary"]
             print(

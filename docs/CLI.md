@@ -57,7 +57,7 @@ Search is case-insensitive and matches every space-separated term within a findi
 | Evidence | Escape closes the row and returns focus to its disclosure button. |
 | Copy dialog | If automatic copying is blocked, select the text and copy manually. Escape closes the dialog. |
 
-Export JSON downloads the complete report, not just the filtered view. Copy controls are available for evidence addresses, mapped RVAs, image bases, and sample hashes. Printing includes all findings and evidence, including filtered-out rows. With JavaScript disabled, all rows and evidence remain visible; filtering, copying, and export controls are unavailable.
+Export JSON downloads the complete report, not just the filtered view. It preserves integer addresses exactly, including values above JavaScript's safe-integer range. Copy controls are available for evidence addresses, mapped RVAs, image bases, and sample hashes. Printing includes all findings and evidence, including filtered-out rows. With JavaScript disabled, all rows and evidence remain visible; filtering, copying, and export controls are unavailable.
 
 The HTML file embeds the report data. Paths and strings are not redacted; check them before sharing the file or its JSON export.
 
@@ -108,9 +108,11 @@ The output includes:
 
 Script selection does not affect the JSON bundle. `--tool json` writes only the two JSON files and instructions.
 
-Absolute match addresses are converted to RVAs using `meta.analysis.base_address`. Export fails if that base is missing and the selection contains absolute evidence. File offsets, .NET tokens, and dynamic coordinates are retained as unmappable evidence rather than converted to virtual addresses. Importers skip unmapped addresses and reject a known sample-hash mismatch.
+Absolute match addresses are converted to RVAs using `meta.analysis.base_address`. Export fails if that base is missing and the selection contains absolute evidence. File offsets, .NET tokens, and dynamic coordinates are retained as unmappable evidence rather than converted to virtual addresses. Importers skip unmapped addresses and reject a known sample-hash mismatch. Binary Ninja uses the open view's `image_base`, not its first mapped address, and stops if that base is unavailable.
 
-Handoff JSON also retains per-finding match trees and per-run runtime evidence. Annotation placement still uses static top-level match addresses.
+Handoff JSON also retains per-finding match trees and per-run runtime evidence. Annotation placement still uses static top-level match addresses. Evidence hotspots are recalculated from the selected findings only; priority filters and `--never-only` therefore affect their membership, counts, and rankings. Report hotspots remain comparison-wide.
+
+All planned handoff files are checked against the inputs before writing. `--force` may replace prior exports, but cannot overwrite a supplied result or ruleset manifest, including through a hard link.
 
 ## validate
 
@@ -138,7 +140,7 @@ capagap case handoff CASE --tool all --output reports/handoff
 
 The manifest pins SHA-256 hashes, relative paths, labels, conditions, and comparison options in a case identity. A changed file, unsafe path, or changed configuration stops verification. The identity is a mix-up/tamper-detection aid, not a signature: someone who can edit the manifest can recompute it. `name` and `notes` deliberately remain editable. Preserve earlier cases and capture new snapshots when adding runs or changing settings.
 
-`verify` verifies integrity and displays quality diagnostics. Integrity success returns `0` even if quality warnings exist; add `--strict` to return `4` for warnings. `report` accepts all four output formats, `--minimum-priority`, and `--limit`. `handoff` accepts `--tool`, `--minimum-priority`, `--never-only` (multiple runs), and `--force`. All three accept `--strict`. Reports and handoffs retain case identity, notes, conditions, and provenance. Report output cannot overwrite the case manifest or pinned inputs.
+`verify` verifies integrity and displays quality diagnostics. Integrity success returns `0` even if quality warnings exist; add `--strict` to return `4` for warnings. `report` accepts all four output formats, `--minimum-priority`, and `--limit`. `handoff` accepts `--tool`, `--minimum-priority`, `--never-only` (multiple runs), and `--force`. All three accept `--strict`. Reports and handoffs retain case identity, notes, conditions, and provenance. Neither reports nor handoffs can overwrite the case manifest or any pinned input, including custom input paths and hard links, even with `--force`.
 
 ## diff
 
@@ -148,9 +150,9 @@ capagap diff BEFORE AFTER --format json --output reports/diff.json --fail-on-cha
 
 Both inputs must be saved CapaGap JSON comparisons of the same type: single-run or matrix. HTML's JSON export is accepted. Raw capa JSON is not. Known sample-hash mismatches are rejected unless `--allow-mismatch` is explicitly set.
 
-Shared run labels align observations. Added/removed labels are run-set changes, not newly observed behavior in an existing run. Findings are matched by rule name; retained source and evidence digests qualify the result. Changes are classified as `finding-added`, `finding-removed`, `rule-changed`, `source-unverified`, `analysis-context-changed`, `observation-changed`, `run-set-changed`, `classification-changed`, or `evidence-changed`. Analysis context includes sample, capa/extractor/platform, restrictions, ruleset manifest, library inclusion, confidence, and declared conditions. Case name/note edits have their own `review_changes` list.
+Shared run labels align observations. Added/removed labels are run-set changes, not newly observed behavior in an existing run. Findings are matched by rule name; retained source and evidence digests qualify the result. Changes are classified as `finding-added`, `finding-removed`, `rule-changed`, `source-unverified`, `analysis-context-changed`, `observation-changed`, `run-set-changed`, `classification-changed`, or `evidence-changed`. Analysis context includes sample, static image base, capa/extractor/platform, restrictions, ruleset manifest, library inclusion, confidence, declared conditions, the baseline, and the relative order of shared runs. Case name/note edits have their own `review_changes` list.
 
-Legacy 0.1 reports are accepted, but missing source/provenance is not assumed equivalent. Evidence fingerprints are verified before comparison. A changed or missing evidence tree is not proof of changed execution. Input file paths, timestamps, and JSON formatting alone do not count as observation changes.
+Legacy reports are accepted, but missing source/provenance is not assumed equivalent. Reports without recorded image-base or baseline context produce a warning. Evidence fingerprints are verified before comparison. A changed or missing evidence tree is not proof of changed execution. Input file paths, timestamps, and JSON formatting alone do not count as observation changes.
 
 Output formats are text, Markdown, and JSON. Normal exit is `0`; `--fail-on-change` returns `3` after writing a changed result. Invalid reports return `2`. Diff output cannot overwrite either input.
 
@@ -180,9 +182,11 @@ Accepted dispositions: `unreviewed`, `confirmed`, `likely`, `benign`, `false-pos
 
 The worksheet identity is a hash of the sample SHA-256 and sorted finding IDs. A mismatch stops `report` or `apply`. This is an accidental-mixup check, not a signature or a complete record of run provenance.
 
+Partial worksheets are accepted. An omitted finding keeps its previously applied review, or counts as `unreviewed` if it has none. `report` and `apply` use the same rules and include every handoff finding in their totals. Unknown finding IDs, duplicate JSON keys, and malformed review fields are errors.
+
 `init` and `apply` require `--force` to replace an existing output. `report` accepts `text` or `markdown` and overwrites its output path if one is supplied. Applying a worksheet writes a new handoff; it does not modify the original unless explicitly given the same path with `--force`.
 
-IDA and Binary Ninja imports replace comment lines with matching CapaGap markers. Ghidra updates the CapaGap bookmark at each location. Keep a database backup before importing annotations.
+IDA and Binary Ninja imports replace comment lines that start with the exact matching CapaGap marker. Analyst lines that merely mention a marker are preserved. Ghidra updates the CapaGap bookmark at each location. Keep a database backup before importing annotations.
 
 ## Exit codes
 
