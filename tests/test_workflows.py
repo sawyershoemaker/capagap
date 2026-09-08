@@ -81,7 +81,7 @@ class CaseTests(WorkflowTestCase):
         self.assertEqual(comparison.metadata["case"]["id"], case["id"])
         self.assertTrue(comparison.metadata["case"]["inputs_verified"])
         self.assertEqual(dict(comparison.runs[1].conditions), {"network": "on"})
-        self.assertTrue(comparison.static.path.is_relative_to(moved))
+        self.assertTrue(comparison.static.path.is_relative_to(moved.resolve()))
         self.assertEqual(
             sorted(path.name for path in moved.iterdir()), ["case.json", "inputs"]
         )
