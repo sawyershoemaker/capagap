@@ -94,6 +94,8 @@ def _serialize_finding(
             for address in finding.rule.evidence_addresses
             if address.rva(image_base) is None
         ],
+        "source_digest": finding.rule.source_digest,
+        "match_evidence": finding.rule.evidence_dict(),
     }
     if isinstance(finding, MatrixFinding):
         result["observed_in"] = list(finding.observed_in)
@@ -128,6 +130,17 @@ def _bundle(
     serialized = [
         _serialize_finding(item, comparison.static.base_address) for item in selected
     ]
+    evidence_runs = (
+        [(run.label, run.comparison.dynamic) for run in comparison.runs]
+        if isinstance(comparison, MatrixComparison)
+        else [(run_labels[0], comparison.dynamic)]
+    )
+    for entry in serialized:
+        entry["runtime_evidence"] = {
+            label: document.rules[entry["name"]].evidence_dict()
+            for label, document in evidence_runs
+            if entry["name"] in document.rules
+        }
     addressable = sum(bool(item["locations"]) for item in serialized)
     location_count = sum(len(item["locations"]) for item in serialized)
     unmappable_count = sum(len(item["unmappable_evidence"]) for item in serialized)
@@ -190,6 +203,14 @@ def _bundle(
             ),
             "ruleset_manifest": ruleset,
             "experiment": experiment,
+            "case": comparison.metadata.get("case"),
+            "provenance": {
+                "static": comparison.static.provenance_dict(),
+                "runs": {
+                    label: document.provenance_dict()
+                    for label, document in evidence_runs
+                },
+            },
         },
         "summary": {
             "selected_findings": len(serialized),

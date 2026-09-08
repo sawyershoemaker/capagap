@@ -1,0 +1,794 @@
+{
+  "meta": {
+    "analysis": {
+      "arch": "amd64",
+      "base_address": {
+        "type": "absolute",
+        "value": 4194304
+      },
+      "extractor": "VivisectFeatureExtractor",
+      "feature_counts": {
+        "file": 4,
+        "functions": [
+          {
+            "address": {
+              "type": "absolute",
+              "value": 4202496
+            },
+            "count": 5
+          },
+          {
+            "address": {
+              "type": "absolute",
+              "value": 4206592
+            },
+            "count": 5
+          },
+          {
+            "address": {
+              "type": "absolute",
+              "value": 4210688
+            },
+            "count": 5
+          },
+          {
+            "address": {
+              "type": "absolute",
+              "value": 4210944
+            },
+            "count": 5
+          },
+          {
+            "address": {
+              "type": "absolute",
+              "value": 4214784
+            },
+            "count": 5
+          },
+          {
+            "address": {
+              "type": "absolute",
+              "value": 4218880
+            },
+            "count": 5
+          },
+          {
+            "address": {
+              "type": "absolute",
+              "value": 4222976
+            },
+            "count": 5
+          }
+        ]
+      },
+      "format": "pe",
+      "layout": {
+        "functions": [
+          {
+            "address": {
+              "type": "absolute",
+              "value": 4202496
+            },
+            "matched_basic_blocks": [
+              {
+                "address": {
+                  "type": "absolute",
+                  "value": 4202512
+                }
+              }
+            ]
+          },
+          {
+            "address": {
+              "type": "absolute",
+              "value": 4206592
+            },
+            "matched_basic_blocks": [
+              {
+                "address": {
+                  "type": "absolute",
+                  "value": 4206608
+                }
+              }
+            ]
+          },
+          {
+            "address": {
+              "type": "absolute",
+              "value": 4210688
+            },
+            "matched_basic_blocks": [
+              {
+                "address": {
+                  "type": "absolute",
+                  "value": 4210704
+                }
+              }
+            ]
+          },
+          {
+            "address": {
+              "type": "absolute",
+              "value": 4210944
+            },
+            "matched_basic_blocks": [
+              {
+                "address": {
+                  "type": "absolute",
+                  "value": 4210960
+                }
+              }
+            ]
+          },
+          {
+            "address": {
+              "type": "absolute",
+              "value": 4214784
+            },
+            "matched_basic_blocks": [
+              {
+                "address": {
+                  "type": "absolute",
+                  "value": 4214800
+                }
+              }
+            ]
+          },
+          {
+            "address": {
+              "type": "absolute",
+              "value": 4218880
+            },
+            "matched_basic_blocks": [
+              {
+                "address": {
+                  "type": "absolute",
+                  "value": 4218896
+                }
+              }
+            ]
+          },
+          {
+            "address": {
+              "type": "absolute",
+              "value": 4222976
+            },
+            "matched_basic_blocks": [
+              {
+                "address": {
+                  "type": "absolute",
+                  "value": 4222992
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "library_functions": [],
+      "os": "windows",
+      "rules": [
+        "capa-rules"
+      ]
+    },
+    "argv": [
+      "capa",
+      "demo.exe",
+      "-j"
+    ],
+    "capagap": {
+      "synthetic": true
+    },
+    "flavor": "static",
+    "sample": {
+      "md5": "11111111111111111111111111111111",
+      "path": "demo.exe",
+      "sha1": "2222222222222222222222222222222222222222",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "timestamp": "2026-08-29T20:00:00Z",
+    "version": "9.4.0"
+  },
+  "rules": {
+    "check for sandbox process names": {
+      "matches": [
+        [
+          {
+            "type": "absolute",
+            "value": 4206592
+          },
+          {
+            "captures": {},
+            "children": [
+              {
+                "captures": {},
+                "children": [],
+                "locations": [
+                  {
+                    "type": "absolute",
+                    "value": 4206608
+                  }
+                ],
+                "node": {
+                  "feature": {
+                    "api": "kernel32.Process32FirstW",
+                    "type": "api"
+                  },
+                  "type": "feature"
+                },
+                "success": true
+              },
+              {
+                "captures": {},
+                "children": [],
+                "locations": [],
+                "node": {
+                  "feature": {
+                    "string": "synthetic alternative, not matched",
+                    "type": "string"
+                  },
+                  "type": "feature"
+                },
+                "success": false
+              }
+            ],
+            "locations": [],
+            "node": {
+              "statement": {
+                "description": "Synthetic alternatives for inspecting rule evidence",
+                "type": "or"
+              },
+              "type": "statement"
+            },
+            "success": true
+          }
+        ]
+      ],
+      "meta": {
+        "attack": [
+          {
+            "id": "T1497.001",
+            "parts": [
+              "Defense Evasion",
+              "Virtualization/Sandbox Evasion",
+              "System Checks"
+            ],
+            "subtechnique": "System Checks",
+            "tactic": "Defense Evasion",
+            "technique": "Virtualization/Sandbox Evasion"
+          }
+        ],
+        "authors": [
+          "demo"
+        ],
+        "description": "",
+        "examples": [],
+        "is_subscope_rule": false,
+        "lib": false,
+        "maec": {},
+        "mbc": [
+          {
+            "behavior": "Virtual Machine Detection",
+            "id": "B0009",
+            "method": "",
+            "objective": "Anti-Behavioral Analysis",
+            "parts": [
+              "Anti-Behavioral Analysis",
+              "Virtual Machine Detection"
+            ]
+          }
+        ],
+        "name": "check for sandbox process names",
+        "namespace": "anti-analysis/anti-vm/vm-detection",
+        "references": [],
+        "scopes": {
+          "dynamic": "thread",
+          "static": "function"
+        }
+      },
+      "source": "rule: check for sandbox process names\nfeatures: shared-demo\n"
+    },
+    "communicate over HTTP": {
+      "matches": [
+        [
+          {
+            "type": "absolute",
+            "value": 4202496
+          },
+          {
+            "captures": {},
+            "children": [
+              {
+                "captures": {},
+                "children": [],
+                "locations": [
+                  {
+                    "type": "absolute",
+                    "value": 4202512
+                  }
+                ],
+                "node": {
+                  "feature": {
+                    "api": "wininet.HttpSendRequestA",
+                    "type": "api"
+                  },
+                  "type": "feature"
+                },
+                "success": true
+              },
+              {
+                "captures": {},
+                "children": [],
+                "locations": [],
+                "node": {
+                  "feature": {
+                    "string": "synthetic alternative, not matched",
+                    "type": "string"
+                  },
+                  "type": "feature"
+                },
+                "success": false
+              }
+            ],
+            "locations": [],
+            "node": {
+              "statement": {
+                "description": "Synthetic alternatives for inspecting rule evidence",
+                "type": "or"
+              },
+              "type": "statement"
+            },
+            "success": true
+          }
+        ]
+      ],
+      "meta": {
+        "attack": [
+          {
+            "id": "T1071.001",
+            "parts": [
+              "Command and Control",
+              "Application Layer Protocol",
+              "Web Protocols"
+            ],
+            "subtechnique": "Web Protocols",
+            "tactic": "Command and Control",
+            "technique": "Application Layer Protocol"
+          }
+        ],
+        "authors": [
+          "demo"
+        ],
+        "description": "",
+        "examples": [],
+        "is_subscope_rule": false,
+        "lib": false,
+        "maec": {},
+        "mbc": [
+          {
+            "behavior": "HTTP Communication",
+            "id": "C0002",
+            "method": "",
+            "objective": "Communication",
+            "parts": [
+              "Communication",
+              "HTTP Communication"
+            ]
+          }
+        ],
+        "name": "communicate over HTTP",
+        "namespace": "communication/http",
+        "references": [],
+        "scopes": {
+          "dynamic": "thread",
+          "static": "function"
+        }
+      },
+      "source": "rule: communicate over HTTP\nfeatures: shared-demo\n"
+    },
+    "create scheduled task": {
+      "matches": [
+        [
+          {
+            "type": "absolute",
+            "value": 4214784
+          },
+          {
+            "captures": {},
+            "children": [
+              {
+                "captures": {},
+                "children": [],
+                "locations": [
+                  {
+                    "type": "absolute",
+                    "value": 4214800
+                  }
+                ],
+                "node": {
+                  "feature": {
+                    "api": "taskschd.ITaskService.Connect",
+                    "type": "api"
+                  },
+                  "type": "feature"
+                },
+                "success": true
+              },
+              {
+                "captures": {},
+                "children": [],
+                "locations": [],
+                "node": {
+                  "feature": {
+                    "string": "synthetic alternative, not matched",
+                    "type": "string"
+                  },
+                  "type": "feature"
+                },
+                "success": false
+              }
+            ],
+            "locations": [],
+            "node": {
+              "statement": {
+                "description": "Synthetic alternatives for inspecting rule evidence",
+                "type": "or"
+              },
+              "type": "statement"
+            },
+            "success": true
+          }
+        ]
+      ],
+      "meta": {
+        "attack": [
+          {
+            "id": "T1053.005",
+            "parts": [
+              "Persistence",
+              "Scheduled Task/Job",
+              "Scheduled Task"
+            ],
+            "subtechnique": "Scheduled Task",
+            "tactic": "Persistence",
+            "technique": "Scheduled Task/Job"
+          }
+        ],
+        "authors": [
+          "demo"
+        ],
+        "description": "",
+        "examples": [],
+        "is_subscope_rule": false,
+        "lib": false,
+        "maec": {},
+        "mbc": [
+          {
+            "behavior": "Task Scheduler",
+            "id": "C0044",
+            "method": "",
+            "objective": "Operating System",
+            "parts": [
+              "Operating System",
+              "Task Scheduler"
+            ]
+          }
+        ],
+        "name": "create scheduled task",
+        "namespace": "persistence/scheduled-task",
+        "references": [],
+        "scopes": {
+          "dynamic": "process",
+          "static": "function"
+        }
+      },
+      "source": "rule: create scheduled task\nfeatures: demo\n"
+    },
+    "encrypt data using AES": {
+      "matches": [
+        [
+          {
+            "type": "absolute",
+            "value": 4218880
+          },
+          {
+            "captures": {},
+            "children": [
+              {
+                "captures": {},
+                "children": [],
+                "locations": [
+                  {
+                    "type": "absolute",
+                    "value": 4218896
+                  }
+                ],
+                "node": {
+                  "feature": {
+                    "api": "advapi32.CryptEncrypt",
+                    "type": "api"
+                  },
+                  "type": "feature"
+                },
+                "success": true
+              },
+              {
+                "captures": {},
+                "children": [],
+                "locations": [],
+                "node": {
+                  "feature": {
+                    "string": "synthetic alternative, not matched",
+                    "type": "string"
+                  },
+                  "type": "feature"
+                },
+                "success": false
+              }
+            ],
+            "locations": [],
+            "node": {
+              "statement": {
+                "description": "Synthetic alternatives for inspecting rule evidence",
+                "type": "or"
+              },
+              "type": "statement"
+            },
+            "success": true
+          }
+        ]
+      ],
+      "meta": {
+        "attack": [],
+        "authors": [
+          "demo"
+        ],
+        "description": "",
+        "examples": [],
+        "is_subscope_rule": false,
+        "lib": false,
+        "maec": {},
+        "mbc": [
+          {
+            "behavior": "Encryption",
+            "id": "C0027",
+            "method": "",
+            "objective": "Data",
+            "parts": [
+              "Data",
+              "Encryption"
+            ]
+          }
+        ],
+        "name": "encrypt data using AES",
+        "namespace": "data-manipulation/encryption/aes",
+        "references": [],
+        "scopes": {
+          "static": "function"
+        }
+      },
+      "source": "rule: encrypt data using AES\nfeatures: demo\n"
+    },
+    "helper library rule": {
+      "matches": [
+        [
+          {
+            "type": "absolute",
+            "value": 4222976
+          },
+          {
+            "captures": {},
+            "children": [
+              {
+                "captures": {},
+                "children": [],
+                "locations": [
+                  {
+                    "type": "absolute",
+                    "value": 4222992
+                  }
+                ],
+                "node": {
+                  "feature": {
+                    "api": "synthetic.helper",
+                    "type": "api"
+                  },
+                  "type": "feature"
+                },
+                "success": true
+              },
+              {
+                "captures": {},
+                "children": [],
+                "locations": [],
+                "node": {
+                  "feature": {
+                    "string": "synthetic alternative, not matched",
+                    "type": "string"
+                  },
+                  "type": "feature"
+                },
+                "success": false
+              }
+            ],
+            "locations": [],
+            "node": {
+              "statement": {
+                "description": "Synthetic alternatives for inspecting rule evidence",
+                "type": "or"
+              },
+              "type": "statement"
+            },
+            "success": true
+          }
+        ]
+      ],
+      "meta": {
+        "attack": [],
+        "authors": [
+          "demo"
+        ],
+        "description": "",
+        "examples": [],
+        "is_subscope_rule": false,
+        "lib": true,
+        "maec": {},
+        "mbc": [],
+        "name": "helper library rule",
+        "namespace": "internal/helper",
+        "references": [],
+        "scopes": {
+          "static": "function"
+        }
+      },
+      "source": "rule: helper library rule\nfeatures: demo\n"
+    },
+    "inject shellcode into remote process": {
+      "matches": [
+        [
+          {
+            "type": "absolute",
+            "value": 4210688
+          },
+          {
+            "captures": {},
+            "children": [
+              {
+                "captures": {},
+                "children": [],
+                "locations": [
+                  {
+                    "type": "absolute",
+                    "value": 4210704
+                  }
+                ],
+                "node": {
+                  "feature": {
+                    "api": "kernel32.WriteProcessMemory",
+                    "type": "api"
+                  },
+                  "type": "feature"
+                },
+                "success": true
+              },
+              {
+                "captures": {},
+                "children": [],
+                "locations": [],
+                "node": {
+                  "feature": {
+                    "string": "synthetic alternative, not matched",
+                    "type": "string"
+                  },
+                  "type": "feature"
+                },
+                "success": false
+              }
+            ],
+            "locations": [],
+            "node": {
+              "statement": {
+                "description": "Synthetic alternatives for inspecting rule evidence",
+                "type": "or"
+              },
+              "type": "statement"
+            },
+            "success": true
+          }
+        ],
+        [
+          {
+            "type": "absolute",
+            "value": 4210944
+          },
+          {
+            "captures": {},
+            "children": [
+              {
+                "captures": {},
+                "children": [],
+                "locations": [
+                  {
+                    "type": "absolute",
+                    "value": 4210960
+                  }
+                ],
+                "node": {
+                  "feature": {
+                    "api": "kernel32.WriteProcessMemory",
+                    "type": "api"
+                  },
+                  "type": "feature"
+                },
+                "success": true
+              },
+              {
+                "captures": {},
+                "children": [],
+                "locations": [],
+                "node": {
+                  "feature": {
+                    "string": "synthetic alternative, not matched",
+                    "type": "string"
+                  },
+                  "type": "feature"
+                },
+                "success": false
+              }
+            ],
+            "locations": [],
+            "node": {
+              "statement": {
+                "description": "Synthetic alternatives for inspecting rule evidence",
+                "type": "or"
+              },
+              "type": "statement"
+            },
+            "success": true
+          }
+        ]
+      ],
+      "meta": {
+        "attack": [
+          {
+            "id": "T1055",
+            "parts": [
+              "Defense Evasion",
+              "Process Injection"
+            ],
+            "subtechnique": "",
+            "tactic": "Defense Evasion",
+            "technique": "Process Injection"
+          }
+        ],
+        "authors": [
+          "demo"
+        ],
+        "description": "",
+        "examples": [],
+        "is_subscope_rule": false,
+        "lib": false,
+        "maec": {},
+        "mbc": [
+          {
+            "behavior": "Process Injection",
+            "id": "E1055",
+            "method": "",
+            "objective": "Process",
+            "parts": [
+              "Process",
+              "Process Injection"
+            ]
+          }
+        ],
+        "name": "inject shellcode into remote process",
+        "namespace": "load-code/inject/process",
+        "references": [],
+        "scopes": {
+          "dynamic": "thread",
+          "static": "function"
+        }
+      },
+      "source": "rule: inject shellcode into remote process\nfeatures: demo\n"
+    }
+  }
+}

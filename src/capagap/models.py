@@ -6,6 +6,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from capagap.diagnostics import Diagnostic
+from capagap.evidence import fingerprint
+
 
 @dataclass(frozen=True)
 class AddressRecord:
@@ -54,10 +57,36 @@ class RuleRecord:
     source_digest: str
     evidence: tuple[str, ...]
     evidence_addresses: tuple[AddressRecord, ...] = ()
+    matches: tuple[dict[str, Any], ...] = ()
+    source_available: bool = True
+    evidence_truncated: bool = False
+    evidence_malformed: bool = False
 
     @property
     def dynamically_comparable(self) -> bool:
-        return bool(self.dynamic_scope and self.dynamic_scope != "unsupported")
+        return self.dynamic_scope in {
+            "file",
+            "process",
+            "thread",
+            "call",
+            "span of calls",
+        }
+
+    def evidence_dict(self) -> dict[str, Any]:
+        return {
+            "source_digest": self.source_digest,
+            "source_available": self.source_available,
+            "matches": list(self.matches),
+            "complete": not (self.evidence_truncated or self.evidence_malformed),
+            "tree_availability": "unavailable"
+            if not any(match.get("tree") for match in self.matches)
+            else "partial"
+            if self.evidence_truncated
+            or self.evidence_malformed
+            or any(not match.get("tree") for match in self.matches)
+            else "retained",
+            "fingerprint": fingerprint(self.matches),
+        }
 
     @property
     def attack_ids(self) -> tuple[str, ...]:
@@ -82,6 +111,23 @@ class CapaDocument:
     rules: dict[str, RuleRecord]
     base_address: int | None = None
     synthetic: bool = False
+    provenance: dict[str, Any] = field(default_factory=dict)
+    diagnostics: tuple[Diagnostic, ...] = ()
+
+    def evidence_dict(self) -> dict[str, Any]:
+        return {name: rule.evidence_dict() for name, rule in sorted(self.rules.items())}
+
+    def provenance_dict(self) -> dict[str, Any]:
+        return {
+            **self.provenance,
+            "sample_sha256": self.sample_sha256,
+            "capa_version": self.capa_version,
+            "extractor": self.extractor,
+            "format": self.format,
+            "os": self.os,
+            "arch": self.arch,
+            "input": str(self.path),
+        }
 
 
 @dataclass(frozen=True)
@@ -97,6 +143,9 @@ class Finding:
         return {
             "status": self.status,
             "name": self.rule.name,
+            "source_digest": self.rule.source_digest,
+            "source_available": self.rule.source_available,
+            "evidence_fingerprint": fingerprint(self.rule.matches),
             "namespace": self.rule.namespace,
             "priority": self.priority,
             "priority_label": self.priority_label,
@@ -160,8 +209,20 @@ class Comparison:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        from capagap.diagnostics import comparison_diagnostics
+
         return {
             "schema_version": 1,
+            "analysis_type": "single-run",
+            "provenance": {
+                "static": self.static.provenance_dict(),
+                "runs": {"dynamic": self.dynamic.provenance_dict()},
+            },
+            "evidence": {
+                "static": self.static.evidence_dict(),
+                "runs": {"dynamic": self.dynamic.evidence_dict()},
+            },
+            "diagnostics": [item.to_dict() for item in comparison_diagnostics(self)],
             "comparison": {
                 "confidence": self.confidence,
                 "sample_sha256": self.static.sample_sha256
@@ -200,6 +261,7 @@ class MatrixRun:
             "input": str(self.comparison.dynamic.path),
             "extractor": self.comparison.dynamic.extractor,
             "capa_version": self.comparison.dynamic.capa_version,
+            "provenance": self.comparison.dynamic.provenance_dict(),
             "confidence": self.comparison.confidence,
             "observed_rules": self.comparison.summary.observed_rules,
             "comparable_static_rules": self.comparison.summary.comparable_static_rules,
@@ -207,6 +269,7 @@ class MatrixRun:
             "dynamic_only_rules": self.comparison.summary.dynamic_only_rules,
             "gate_signals": list(self.comparison.gate_signals),
             "warnings": list(self.comparison.warnings),
+            "source_drift": list(self.comparison.source_drift),
             "conditions": dict(self.conditions),
             "changed_conditions": list(self.changed_conditions),
         }
@@ -255,6 +318,9 @@ class MatrixFinding:
         return {
             "status": self.status,
             "name": self.rule.name,
+            "source_digest": self.rule.source_digest,
+            "source_available": self.rule.source_available,
+            "evidence_fingerprint": fingerprint(self.rule.matches),
             "namespace": self.rule.namespace,
             "priority": self.priority,
             "priority_label": self.priority_label,
@@ -325,11 +391,32 @@ class MatrixComparison:
     experiment_baseline: str = ""
     experiment_warnings: tuple[str, ...] = ()
     warnings: tuple[str, ...] = ()
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        from capagap.contributions import analyze_contributions
+        from capagap.diagnostics import comparison_diagnostics
+
         return {
             "schema_version": 1,
             "analysis_type": "multi-run-matrix",
+            "metadata": self.metadata,
+            "provenance": {
+                "static": self.static.provenance_dict(),
+                "runs": {
+                    run.label: run.comparison.dynamic.provenance_dict()
+                    for run in self.runs
+                },
+            },
+            "evidence": {
+                "static": self.static.evidence_dict(),
+                "runs": {
+                    run.label: run.comparison.dynamic.evidence_dict()
+                    for run in self.runs
+                },
+            },
+            "diagnostics": [item.to_dict() for item in comparison_diagnostics(self)],
+            "run_contributions": analyze_contributions(self),
             "matrix": {
                 "confidence": self.confidence,
                 "sample_sha256": self.static.sample_sha256,

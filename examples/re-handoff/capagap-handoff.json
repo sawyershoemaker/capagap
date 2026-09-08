@@ -1,5 +1,6 @@
 {
   "analysis": {
+    "case": null,
     "confidence": "high",
     "experiment": {
       "baseline": "baseline",
@@ -22,6 +23,88 @@
         }
       ],
       "warnings": []
+    },
+    "provenance": {
+      "runs": {
+        "baseline": {
+          "arch": "amd64",
+          "argv": [
+            "capa",
+            "cape-report.json",
+            "-j"
+          ],
+          "capa_version": "9.4.0",
+          "content_sha256": "1902bc08c68e640d246aa109affb89c7ec638634aa0aee13335fcfdc7d18987e",
+          "counts_invalid": false,
+          "evidence_malformed": false,
+          "evidence_truncated": false,
+          "extractor": "CapeExtractor",
+          "feature_counts": {
+            "total": 19
+          },
+          "format": "pe",
+          "input": "examples\\evidence\\dynamic.json",
+          "layout_entries": 9,
+          "os": "windows",
+          "rule_paths": [
+            "capa-rules"
+          ],
+          "sample_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "timestamp": "2026-08-29T20:05:00Z"
+        },
+        "interactive": {
+          "arch": "amd64",
+          "argv": [
+            "capa",
+            "interactive-cape-report.json",
+            "-j"
+          ],
+          "capa_version": "9.4.0",
+          "content_sha256": "777a893495557f4316f918bd52ceb665b50826070d2f18306af37f437dd114f8",
+          "counts_invalid": false,
+          "evidence_malformed": false,
+          "evidence_truncated": false,
+          "extractor": "CapeExtractor",
+          "feature_counts": {
+            "total": 19
+          },
+          "format": "pe",
+          "input": "examples\\evidence\\dynamic-interactive.json",
+          "layout_entries": 9,
+          "os": "windows",
+          "rule_paths": [
+            "capa-rules"
+          ],
+          "sample_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "timestamp": "2026-08-29T20:15:00Z"
+        }
+      },
+      "static": {
+        "arch": "amd64",
+        "argv": [
+          "capa",
+          "demo.exe",
+          "-j"
+        ],
+        "capa_version": "9.4.0",
+        "content_sha256": "6c38ace9f117747a9447a542d652032b9c98d1409fa715b636b8982ac8eb2f73",
+        "counts_invalid": false,
+        "evidence_malformed": false,
+        "evidence_truncated": false,
+        "extractor": "VivisectFeatureExtractor",
+        "feature_counts": {
+          "total": 39
+        },
+        "format": "pe",
+        "input": "examples\\evidence\\static.json",
+        "layout_entries": 14,
+        "os": "windows",
+        "rule_paths": [
+          "capa-rules"
+        ],
+        "sample_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "timestamp": "2026-08-29T20:00:00Z"
+      }
     },
     "ruleset_manifest": null,
     "run_labels": [
@@ -126,6 +209,131 @@
           "value": 4210944
         }
       ],
+      "match_evidence": {
+        "complete": true,
+        "fingerprint": "e2e63c12e9230a9e4b431e41eefa1f45f80191b737555bc9376532854a41996f",
+        "matches": [
+          {
+            "address": {
+              "context": {
+                "function": "0x404000"
+              },
+              "display": "0x404000",
+              "kind": "absolute",
+              "rva": null,
+              "value": 4210688
+            },
+            "tree": {
+              "captures": {},
+              "children": [
+                {
+                  "captures": {},
+                  "children": [],
+                  "details": {
+                    "api": "kernel32.WriteProcessMemory",
+                    "type": "api"
+                  },
+                  "kind": "feature",
+                  "label": "api: kernel32.WriteProcessMemory",
+                  "locations": [
+                    {
+                      "context": {
+                        "function": "0x404000"
+                      },
+                      "display": "0x404010",
+                      "kind": "absolute",
+                      "rva": null,
+                      "value": 4210704
+                    }
+                  ],
+                  "success": true
+                },
+                {
+                  "captures": {},
+                  "children": [],
+                  "details": {
+                    "string": "synthetic alternative, not matched",
+                    "type": "string"
+                  },
+                  "kind": "feature",
+                  "label": "string: synthetic alternative, not matched",
+                  "locations": [],
+                  "success": false
+                }
+              ],
+              "details": {
+                "description": "Synthetic alternatives for inspecting rule evidence",
+                "type": "or"
+              },
+              "kind": "statement",
+              "label": "or",
+              "locations": [],
+              "success": true
+            }
+          },
+          {
+            "address": {
+              "context": {
+                "function": "0x404100"
+              },
+              "display": "0x404100",
+              "kind": "absolute",
+              "rva": null,
+              "value": 4210944
+            },
+            "tree": {
+              "captures": {},
+              "children": [
+                {
+                  "captures": {},
+                  "children": [],
+                  "details": {
+                    "api": "kernel32.WriteProcessMemory",
+                    "type": "api"
+                  },
+                  "kind": "feature",
+                  "label": "api: kernel32.WriteProcessMemory",
+                  "locations": [
+                    {
+                      "context": {
+                        "function": "0x404100"
+                      },
+                      "display": "0x404110",
+                      "kind": "absolute",
+                      "rva": null,
+                      "value": 4210960
+                    }
+                  ],
+                  "success": true
+                },
+                {
+                  "captures": {},
+                  "children": [],
+                  "details": {
+                    "string": "synthetic alternative, not matched",
+                    "type": "string"
+                  },
+                  "kind": "feature",
+                  "label": "string: synthetic alternative, not matched",
+                  "locations": [],
+                  "success": false
+                }
+              ],
+              "details": {
+                "description": "Synthetic alternatives for inspecting rule evidence",
+                "type": "or"
+              },
+              "kind": "statement",
+              "label": "or",
+              "locations": [],
+              "success": true
+            }
+          }
+        ],
+        "source_available": true,
+        "source_digest": "d5276d08406a06627ee65aa6c80d289cd5680e3755c6b9b5ebc320e8035a71d7",
+        "tree_availability": "retained"
+      },
       "mbc": [
         "E1055"
       ],
@@ -143,6 +351,8 @@
         "rule supports dynamic thread scope",
         "the run also observed an anti-analysis capability"
       ],
+      "runtime_evidence": {},
+      "source_digest": "d5276d08406a06627ee65aa6c80d289cd5680e3755c6b9b5ebc320e8035a71d7",
       "static_scope": "function",
       "status": "never-observed",
       "suggested_action": "Capture child-process memory and break on the supporting allocation/write/thread APIs near the static match.",
@@ -167,6 +377,73 @@
           "value": 4214784
         }
       ],
+      "match_evidence": {
+        "complete": true,
+        "fingerprint": "1e394a26ccdf7629c40bf1f06bc6dcff7e0771599399193449a56f7674b3d1a6",
+        "matches": [
+          {
+            "address": {
+              "context": {
+                "function": "0x405000"
+              },
+              "display": "0x405000",
+              "kind": "absolute",
+              "rva": null,
+              "value": 4214784
+            },
+            "tree": {
+              "captures": {},
+              "children": [
+                {
+                  "captures": {},
+                  "children": [],
+                  "details": {
+                    "api": "taskschd.ITaskService.Connect",
+                    "type": "api"
+                  },
+                  "kind": "feature",
+                  "label": "api: taskschd.ITaskService.Connect",
+                  "locations": [
+                    {
+                      "context": {
+                        "function": "0x405000"
+                      },
+                      "display": "0x405010",
+                      "kind": "absolute",
+                      "rva": null,
+                      "value": 4214800
+                    }
+                  ],
+                  "success": true
+                },
+                {
+                  "captures": {},
+                  "children": [],
+                  "details": {
+                    "string": "synthetic alternative, not matched",
+                    "type": "string"
+                  },
+                  "kind": "feature",
+                  "label": "string: synthetic alternative, not matched",
+                  "locations": [],
+                  "success": false
+                }
+              ],
+              "details": {
+                "description": "Synthetic alternatives for inspecting rule evidence",
+                "type": "or"
+              },
+              "kind": "statement",
+              "label": "or",
+              "locations": [],
+              "success": true
+            }
+          }
+        ],
+        "source_available": true,
+        "source_digest": "1b2706d0045c09d4f79473d310d55105d5c8bb3c2f262eb68661b29525debe56",
+        "tree_availability": "retained"
+      },
       "mbc": [
         "C0044"
       ],
@@ -185,6 +462,90 @@
         "rule supports dynamic process scope",
         "the run also observed an anti-analysis capability"
       ],
+      "runtime_evidence": {
+        "interactive": {
+          "complete": true,
+          "fingerprint": "2d5f29f5eadf76e57d34f50f0bed91fa9163fa510ffb3a4c23de0f1bd2f0fe7d",
+          "matches": [
+            {
+              "address": {
+                "context": {
+                  "process": "ppid:4/pid:1001",
+                  "process_name": "demo.exe",
+                  "thread": "ppid:4/pid:1001/tid:2000"
+                },
+                "display": "ppid:4/pid:1001/tid:2000",
+                "kind": "thread",
+                "rva": null,
+                "value": [
+                  4,
+                  1001,
+                  2000
+                ]
+              },
+              "tree": {
+                "captures": {},
+                "children": [
+                  {
+                    "captures": {},
+                    "children": [],
+                    "details": {
+                      "api": "taskschd.ITaskService.Connect",
+                      "type": "api"
+                    },
+                    "kind": "feature",
+                    "label": "api: taskschd.ITaskService.Connect",
+                    "locations": [
+                      {
+                        "context": {
+                          "call_name": "Connect(synthetic arguments)",
+                          "process": "ppid:4/pid:1001",
+                          "process_name": "demo.exe",
+                          "thread": "ppid:4/pid:1001/tid:2000"
+                        },
+                        "display": "ppid:4/pid:1001/tid:2000/call:1",
+                        "kind": "call",
+                        "rva": null,
+                        "value": [
+                          4,
+                          1001,
+                          2000,
+                          1
+                        ]
+                      }
+                    ],
+                    "success": true
+                  },
+                  {
+                    "captures": {},
+                    "children": [],
+                    "details": {
+                      "string": "synthetic alternative, not matched",
+                      "type": "string"
+                    },
+                    "kind": "feature",
+                    "label": "string: synthetic alternative, not matched",
+                    "locations": [],
+                    "success": false
+                  }
+                ],
+                "details": {
+                  "description": "Synthetic alternatives for inspecting rule evidence",
+                  "type": "or"
+                },
+                "kind": "statement",
+                "label": "or",
+                "locations": [],
+                "success": true
+              }
+            }
+          ],
+          "source_available": true,
+          "source_digest": "1b2706d0045c09d4f79473d310d55105d5c8bb3c2f262eb68661b29525debe56",
+          "tree_availability": "retained"
+        }
+      },
+      "source_digest": "1b2706d0045c09d4f79473d310d55105d5c8bb3c2f262eb68661b29525debe56",
       "static_scope": "function",
       "status": "environment-sensitive",
       "suggested_action": "Repeat with the required privilege and longer runtime; inspect registry, service, task, and startup artifacts.",
@@ -208,6 +569,73 @@
           "value": 4206592
         }
       ],
+      "match_evidence": {
+        "complete": true,
+        "fingerprint": "bd16dc9460198dcb7dbb0c074fec0abc78d3d5d57211a77b9884638807083a07",
+        "matches": [
+          {
+            "address": {
+              "context": {
+                "function": "0x403000"
+              },
+              "display": "0x403000",
+              "kind": "absolute",
+              "rva": null,
+              "value": 4206592
+            },
+            "tree": {
+              "captures": {},
+              "children": [
+                {
+                  "captures": {},
+                  "children": [],
+                  "details": {
+                    "api": "kernel32.Process32FirstW",
+                    "type": "api"
+                  },
+                  "kind": "feature",
+                  "label": "api: kernel32.Process32FirstW",
+                  "locations": [
+                    {
+                      "context": {
+                        "function": "0x403000"
+                      },
+                      "display": "0x403010",
+                      "kind": "absolute",
+                      "rva": null,
+                      "value": 4206608
+                    }
+                  ],
+                  "success": true
+                },
+                {
+                  "captures": {},
+                  "children": [],
+                  "details": {
+                    "string": "synthetic alternative, not matched",
+                    "type": "string"
+                  },
+                  "kind": "feature",
+                  "label": "string: synthetic alternative, not matched",
+                  "locations": [],
+                  "success": false
+                }
+              ],
+              "details": {
+                "description": "Synthetic alternatives for inspecting rule evidence",
+                "type": "or"
+              },
+              "kind": "statement",
+              "label": "or",
+              "locations": [],
+              "success": true
+            }
+          }
+        ],
+        "source_available": true,
+        "source_digest": "39f12ec3b95602baafabb6893faeac504341ef7295249e7a94935ece765c0c1a",
+        "tree_availability": "retained"
+      },
       "mbc": [
         "B0009"
       ],
@@ -225,6 +653,90 @@
         "mapped to MBC",
         "rule supports dynamic thread scope"
       ],
+      "runtime_evidence": {
+        "baseline": {
+          "complete": true,
+          "fingerprint": "82e4d837da61ae399853284d84e78565969f8b480a24c1fb978880bcf6589985",
+          "matches": [
+            {
+              "address": {
+                "context": {
+                  "process": "ppid:4/pid:1001",
+                  "process_name": "demo.exe",
+                  "thread": "ppid:4/pid:1001/tid:2000"
+                },
+                "display": "ppid:4/pid:1001/tid:2000",
+                "kind": "thread",
+                "rva": null,
+                "value": [
+                  4,
+                  1001,
+                  2000
+                ]
+              },
+              "tree": {
+                "captures": {},
+                "children": [
+                  {
+                    "captures": {},
+                    "children": [],
+                    "details": {
+                      "api": "kernel32.Process32FirstW",
+                      "type": "api"
+                    },
+                    "kind": "feature",
+                    "label": "api: kernel32.Process32FirstW",
+                    "locations": [
+                      {
+                        "context": {
+                          "call_name": "Process32FirstW(synthetic arguments)",
+                          "process": "ppid:4/pid:1001",
+                          "process_name": "demo.exe",
+                          "thread": "ppid:4/pid:1001/tid:2000"
+                        },
+                        "display": "ppid:4/pid:1001/tid:2000/call:1",
+                        "kind": "call",
+                        "rva": null,
+                        "value": [
+                          4,
+                          1001,
+                          2000,
+                          1
+                        ]
+                      }
+                    ],
+                    "success": true
+                  },
+                  {
+                    "captures": {},
+                    "children": [],
+                    "details": {
+                      "string": "synthetic alternative, not matched",
+                      "type": "string"
+                    },
+                    "kind": "feature",
+                    "label": "string: synthetic alternative, not matched",
+                    "locations": [],
+                    "success": false
+                  }
+                ],
+                "details": {
+                  "description": "Synthetic alternatives for inspecting rule evidence",
+                  "type": "or"
+                },
+                "kind": "statement",
+                "label": "or",
+                "locations": [],
+                "success": true
+              }
+            }
+          ],
+          "source_available": true,
+          "source_digest": "39f12ec3b95602baafabb6893faeac504341ef7295249e7a94935ece765c0c1a",
+          "tree_availability": "retained"
+        }
+      },
+      "source_digest": "39f12ec3b95602baafabb6893faeac504341ef7295249e7a94935ece765c0c1a",
       "static_scope": "function",
       "status": "environment-sensitive",
       "suggested_action": "Inspect the static match site and debug the decision branch; repeat in a differently fingerprinted environment.",
@@ -236,7 +748,7 @@
   ],
   "generator": {
     "name": "capagap",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "schema": "capagap-handoff",
   "schema_version": 1,

@@ -15,6 +15,31 @@
   --radius: 4px;
   font: 16px/1.5 "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
 }
+.match-evidence, .runtime-evidence { margin-top: 14px; }
+.match-evidence > summary, .runtime-evidence > summary { color: var(--accent); padding-block: 6px; font-size: 14px; }
+.match-location { margin-block: 12px; }
+.match-location > summary { padding-block: 4px; overflow-wrap: anywhere; }
+.evidence-tree { list-style: none; margin: 8px 0; padding-inline-start: 14px; border-inline-start: 1px solid var(--line); }
+.evidence-tree > li { margin-block: 10px; min-width: 0; }
+.evidence-node { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; overflow-wrap: anywhere; }
+.node-state { color: var(--muted); font-size: 12px; }
+.node-description, .node-locations, .node-captures { font-size: 13px; overflow-wrap: anywhere; }
+.node-locations { display: grid; gap: 4px; margin-top: 5px; color: var(--muted); }
+.node-captures { padding-inline-start: 16px; }
+.support-heading { margin-top: 24px; font-weight: 600; }
+.contribution-boundary { margin-top: 8px; max-width: 75ch; }
+.case-notes { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 75ch; margin-top: 16px; }
+.diagnostic-list { list-style: none; padding: 0; margin: 0; }
+.diagnostic-list > li { padding-block: 14px; border-bottom: 1px solid var(--line); }
+.diagnostic-list > li:last-child { border-bottom: 0; }
+.diagnostic-label { display: inline-block; margin-inline-end: 14px; font-weight: 500; }
+.diagnostic-list p { margin-top: 6px; max-width: 75ch; }
+.diagnostic-list code { overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  .workspace-toolbar nav { flex-wrap: wrap; gap: 0 8px; }
+  .match-evidence > summary, .runtime-evidence > summary { min-height: 40px; font-size: 14px; }
+  .evidence-tree { padding-inline-start: 10px; }
+}
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--surface); color: var(--ink); }
 ::selection { background: #d8e7fa; color: var(--ink); }
@@ -81,7 +106,7 @@ input::placeholder { color: var(--muted); opacity: 1; }
 .group-button:hover { background: var(--subtle); border-color: var(--line-strong); }
 .group-button[aria-pressed="true"] { color: #fff; background: var(--accent); border-color: var(--accent); }
 .group-description { color: var(--muted); font-size: 14px; padding: 0 0 14px; }
-.matrix-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); }
+.matrix-scroll { position: relative; overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); }
 .matrix { width: 100%; border-collapse: collapse; text-align: left; table-layout: auto; }
 .matrix th, .matrix td { padding: 13px 22px; border-right: 1px solid var(--line); overflow-wrap: anywhere; }
 .matrix tr > :last-child { border-right: 0; }
@@ -165,7 +190,7 @@ input::placeholder { color: var(--muted); opacity: 1; }
 .section-intro { color: var(--muted); max-width: 80ch; margin-bottom: 20px; }
 .section-content p + p { margin-top: 12px; }
 .section-content ul { margin: 0 0 14px; padding-left: 20px; }
-.horizontal-scroll { overflow-x: auto; }
+.horizontal-scroll { position: relative; overflow-x: auto; }
 .data-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
 .data-table th, .data-table td { padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .data-table thead th { font-weight: 500; color: var(--muted); }

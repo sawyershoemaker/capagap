@@ -9,6 +9,7 @@ Each JSON fixture explicitly sets `meta.capagap.synthetic` to `true`. HTML repor
 | `static.json` | Six static rule records, including one library rule. |
 | `dynamic.json` | Baseline dynamic matches. |
 | `dynamic-interactive.json` | A second run with different observed matches. |
+| `evidence/` | The same rule-presence scenarios with synthetic feature trees, locations, layout context, and feature counts. |
 | `demo-report.md` | Single-run comparison output. |
 | `matrix-report.md` | Two-run comparison output. |
 | `single-run-dashboard.html` | Offline single-run HTML report. |
@@ -20,7 +21,9 @@ The JSON documents use a minimized capa 9.4-style result structure, but were not
 
 The baseline observes two of four comparable static capabilities. The two-run union observes three. Library rules are excluded by default; the remaining static-only rule does not enter the coverage denominator.
 
-Reproduce the reports with the commands in the [README](../README.md). To try manifest generation independently:
+The checked-in HTML, Markdown, and handoff examples use `evidence/`. The three top-level JSON files retain their minimal shape to demonstrate missing-detail diagnostics. To regenerate the richer fixtures and reports after an editable install, run `python scripts/generate_examples.py`. This replaces generated examples, including the unreviewed example triage worksheet; do not use that directory for real case notes.
+
+To try manifest generation independently:
 
 ```sh
 capagap manifest examples/demo-rules --output reports/demo-manifest.json

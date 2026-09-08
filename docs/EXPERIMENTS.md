@@ -52,4 +52,10 @@ Prefer `user-activity` over labels such as `run2`. The label and declared `KEY=V
 
 ## Avoid false conclusions
 
+Before interpreting coverage, run `capagap validate static.json baseline.json`. Check restrictions, feature counts, sample identity, and extractor metadata. Quality diagnostics remain separate from capability counts.
+
+Capture the result documents with `capagap case init` to preserve hashes and condition declarations. Generate later reports with `capagap case report`; keep a new snapshot for each changed set of inputs. To compare saved JSON reports, use `capagap diff before.json after.json`. Keep labels consistent for the same experimental role so changes align correctly.
+
+Use `capagap contributions` to see which runs add comparable capabilities and which overlap. The suggested representative subset preserves the measured union only. Preserve the original traces: apparently redundant runs may differ in arguments, timing, or behavior that the selected rules do not measure.
+
 Do not attribute a delta to a setting when several settings changed together. Keep capa major versions, rule bundles, sample hashes, and analysis architecture consistent. CapaGap detects some of these mismatches, but it cannot reconstruct undocumented sandbox changes.

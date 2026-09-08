@@ -6,9 +6,31 @@ import json
 import textwrap
 from collections.abc import Iterable
 
+from capagap.contributions import analyze_contributions, render_contributions
+from capagap.diagnostics import comparison_diagnostics, render_validation
 from capagap.models import Comparison, Finding, MatrixComparison, MatrixFinding
 
 PRIORITY_ORDER = {"low": 0, "medium": 1, "high": 2, "critical": 3}
+
+
+def _supplement(
+    comparison: Comparison | MatrixComparison, *, markdown: bool = False
+) -> str:
+    sections = []
+    case = comparison.metadata.get("case")
+    if isinstance(case, dict):
+        clean = _md_escape if markdown else str
+        sections.append(
+            f"{'## ' if markdown else ''}Case: {clean(case['name'])}\nID: {case['id']}\n{clean(case['notes'])}\n"
+        )
+    if isinstance(comparison, MatrixComparison):
+        sections.append(
+            render_contributions(analyze_contributions(comparison), markdown=markdown)
+        )
+    issues = [item.to_dict() for item in comparison_diagnostics(comparison)]
+    if issues:
+        sections.append(render_validation({"diagnostics": issues}, markdown=markdown))
+    return "\n" + "\n".join(sections) if sections else ""
 
 
 def _visible(
@@ -157,11 +179,17 @@ def render_text(
             "the code never executed; missing stimuli, trace loss, packing, or rule drift can also explain a gap.",
         ]
     )
-    return "\n".join(lines) + "\n"
+    return "\n".join(lines) + "\n" + _supplement(comparison)
 
 
 def _md_escape(value: str) -> str:
-    return value.replace("|", "\\|").replace("\n", " ")
+    return (
+        value.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("|", "\\|")
+        .replace("\n", " ")
+    )
 
 
 def render_markdown(
@@ -279,7 +307,7 @@ def render_markdown(
             "",
         ]
     )
-    return "\n".join(lines)
+    return "\n".join(lines) + _supplement(comparison, markdown=True)
 
 
 def render_json(comparison: Comparison) -> str:
@@ -420,7 +448,7 @@ def render_matrix_text(
             "it does not by itself identify which condition caused the change.",
         ]
     )
-    return "\n".join(lines) + "\n"
+    return "\n".join(lines) + "\n" + _supplement(comparison)
 
 
 def render_matrix_markdown(
@@ -554,7 +582,7 @@ def render_matrix_markdown(
             "",
         ]
     )
-    return "\n".join(lines)
+    return "\n".join(lines) + _supplement(comparison, markdown=True)
 
 
 def render_matrix_json(comparison: MatrixComparison) -> str:

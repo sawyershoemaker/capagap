@@ -32,7 +32,7 @@ A manifest does not attest to the command, extractor configuration, or full rule
 
 ## Input confidence
 
-Matching sample hashes start a comparison at high confidence. Missing hashes lower it to medium. OS, architecture, and capa major-version differences each lower it by one level. Different hashes are rejected unless `--allow-mismatch` is set, in which case confidence is low.
+Matching valid sample hashes start a comparison at high confidence. Missing or malformed hashes lower it to medium. OS, architecture, and capa major-version differences each lower it by one level. Different valid hashes are rejected unless `--allow-mismatch` is set, in which case confidence is low.
 
 This label describes input consistency, not the reliability of a particular behavioral conclusion.
 
@@ -87,7 +87,17 @@ Applying a worksheet creates a reviewed handoff. IDA and Binary Ninja replace co
 
 ## Input handling
 
-CapaGap never executes sample content or embedded rule source. JSON inputs are limited to 256 MiB after decompression. Manifest and worksheet inputs have separate size limits.
+Detailed match evidence is a bounded projection of the result document: statements, features, success states, captures, locations, and explicitly recorded layout containment. It is not a re-evaluation of a capa rule. Absent rules have no result tree to inspect. JSON stores each retained view's SHA-256 fingerprint and availability separately from the original rule-source digest and input-content digest.
+
+Cases pin decompressed input bytes, run labels/settings, an optional ruleset, and comparison options. Their identity excludes editable case names and notes. All references must resolve inside the case directory. The identity detects accidental mixing and changes, but does not authenticate the author.
+
+Saved-report diffs compare rule names and shared run labels. Source drift and changed extraction context take precedence over an observation-only classification. Added runs do not become gained observations in old runs. Missing provenance prevents a claim of equivalent context. Input timestamps and paths are deliberately not behavioral change signals.
+
+Run contributions operate on each run's intersection with comparable static capabilities. Unique coverage counts capabilities seen in exactly one run. Incremental coverage depends on input order. Greedy set cover retains the observed union, breaking ties by input order; it does not guarantee the smallest subset or equivalent behavior outside the measured rules.
+
+Structured diagnostics are independent of coverage and input-consistency confidence. Strict mode blocks on warnings and errors; normal mode retains them as advisory context. Missing counts remain unknown. A caller-selected feature-count threshold does not imply execution coverage.
+
+CapaGap never executes sample content or embedded rule source. JSON inputs are limited to 256 MiB after decompression and reject duplicate keys/non-finite numbers. Results support at most 50,000 rule records. Detailed evidence retains at most 2,048 matches per rule, 50,000 tree nodes per document, 32 tree levels, 128 items per node list, and 8,192 characters per evidence string. Layout indexing is separately bounded at 50,000 records. HTML uses a smaller compact tree view and points to JSON for additional retained detail. Manifest, worksheet, and case-manifest inputs have separate size limits.
 
 Native importer scripts are fixed package resources. Report-controlled text is loaded as JSON data, not inserted into executable source. Manifest, handoff, and triage writes require explicit overwrite flags; ordinary report output replaces an existing destination.
 

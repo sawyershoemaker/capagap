@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from capagap.analysis import ComparisonError, compare_documents
+from capagap.diagnostics import require_valid
 from capagap.hotspots import build_evidence_hotspots
 from capagap.manifest import RuleManifest
 from capagap.models import (
@@ -78,15 +79,18 @@ def compare_matrix(
     include_library: bool = False,
     ruleset_manifest: RuleManifest | None = None,
     experiment_conditions: Iterable[tuple[str, str, str]] = (),
+    strict: bool = False,
 ) -> MatrixComparison:
     """Compare one static result with two or more labeled dynamic results."""
 
     raw_runs = tuple(dynamic_runs)
     if len(raw_runs) < 2:
         raise ComparisonError("matrix analysis requires at least two dynamic runs")
+    if len(raw_runs) > 128:
+        raise ComparisonError("matrix analysis supports at most 128 dynamic runs")
 
     labels = tuple(label.strip() for label, _ in raw_runs)
-    if any(not label for label in labels):
+    if any(not label or len(label) > 256 for label in labels):
         raise ComparisonError("matrix run labels cannot be empty")
     if len(set(labels)) != len(labels):
         raise ComparisonError("matrix run labels must be unique")
@@ -234,7 +238,7 @@ def compare_matrix(
         dynamic_only_rules=len(dynamic_only),
         ruleset_unverified_rules=len(ruleset_unverified),
     )
-    return MatrixComparison(
+    result = MatrixComparison(
         static=static,
         runs=tuple(runs),
         confidence=confidence,
@@ -253,4 +257,22 @@ def compare_matrix(
         experiment_baseline=baseline_label,
         experiment_warnings=tuple(experiment_warnings),
         warnings=warnings,
+        metadata={
+            "include_library_rules": include_library,
+            "sample_hashes_match": all(
+                run.comparison.metadata["sample_hashes_match"] for run in runs
+            ),
+            "static_extractor": static.extractor,
+            "dynamic_extractors": {
+                run.label: run.comparison.dynamic.extractor for run in runs
+            },
+            **(
+                {"ruleset_manifest": runs[0].comparison.metadata["ruleset_manifest"]}
+                if ruleset_manifest
+                else {}
+            ),
+        },
     )
+    if strict:
+        require_valid(result)
+    return result

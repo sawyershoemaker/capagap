@@ -1,0 +1,349 @@
+"""CLI workflows for cases, validation, saved-report diffs and run contributions."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+from capagap.analysis import ComparisonError, compare_documents
+from capagap.cases import CaseError, create_case, load_case
+from capagap.contributions import analyze_contributions, render_contributions
+from capagap.diagnostics import (
+    Diagnostic,
+    render_validation,
+    require_valid,
+    validation_result,
+)
+from capagap.diff import compare_reports, load_report, render_diff
+from capagap.handoff import build_matrix_handoff, build_single_handoff, write_handoff
+from capagap.html_report import render_html, render_matrix_html
+from capagap.io import DocumentError, load_document
+from capagap.manifest import load_ruleset_manifest
+from capagap.matrix import compare_matrix
+from capagap.models import MatrixComparison
+from capagap.render import (
+    render_json,
+    render_markdown,
+    render_matrix_json,
+    render_matrix_markdown,
+    render_matrix_text,
+    render_text,
+)
+
+
+def _output(parser: argparse.ArgumentParser, *, html: bool = False) -> None:
+    parser.add_argument(
+        "--format",
+        choices=("text", "markdown", "json", "html")
+        if html
+        else ("text", "markdown", "json"),
+        default="text",
+    )
+    parser.add_argument("--output", type=Path)
+
+
+def register_commands(
+    subcommands, add_report_arguments, run_argument, condition_argument
+) -> None:
+    validate = subcommands.add_parser(
+        "validate", help="inspect capa result quality before interpreting coverage"
+    )
+    validate.add_argument("inputs", nargs="+", type=Path)
+    validate.add_argument(
+        "--minimum-features",
+        type=int,
+        default=1,
+        help="warn below this explicitly chosen extracted-feature count",
+    )
+    _output(validate)
+
+    diff = subcommands.add_parser("diff", help="compare two saved CapaGap JSON reports")
+    diff.add_argument("before", type=Path)
+    diff.add_argument("after", type=Path)
+    diff.add_argument("--allow-mismatch", action="store_true")
+    diff.add_argument(
+        "--fail-on-change",
+        action="store_true",
+        help="return exit code 3 when the reports differ",
+    )
+    _output(diff)
+
+    contributions = subcommands.add_parser(
+        "contributions",
+        help="measure unique capability coverage contributed by each run",
+    )
+    contributions.add_argument("static", type=Path)
+    contributions.add_argument(
+        "--run", required=True, action="append", type=run_argument, metavar="LABEL=PATH"
+    )
+    contributions.add_argument(
+        "--condition", action="append", default=[], type=condition_argument
+    )
+    add_report_arguments(contributions)
+
+    case = subcommands.add_parser(
+        "case", help="create and use portable, hash-pinned analysis cases"
+    )
+    commands = case.add_subparsers(dest="case_command", required=True)
+    init = commands.add_parser(
+        "init",
+        help="capture a new case directory; existing directories are never replaced",
+    )
+    init.add_argument("static", type=Path)
+    init.add_argument(
+        "--run", required=True, action="append", type=run_argument, metavar="LABEL=PATH"
+    )
+    init.add_argument(
+        "--condition", action="append", default=[], type=condition_argument
+    )
+    init.add_argument("--output", required=True, type=Path, metavar="DIRECTORY")
+    init.add_argument("--name", default="Analysis case")
+    init.add_argument("--notes", default="")
+    init.add_argument("--ruleset-manifest", type=Path)
+    init.add_argument("--allow-mismatch", action="store_true")
+    init.add_argument("--include-library", action="store_true")
+    for name in ("verify", "report", "handoff"):
+        command = commands.add_parser(name)
+        command.add_argument("path", type=Path, help="case directory or case.json")
+        command.add_argument(
+            "--strict", action="store_true", help="stop on input-quality warnings"
+        )
+        if name != "handoff":
+            _output(command, html=name == "report")
+        else:
+            command.add_argument("--output", required=True, type=Path)
+            command.add_argument(
+                "--tool",
+                choices=("all", "json", "ghidra", "ida", "binary-ninja"),
+                default="all",
+            )
+            command.add_argument("--never-only", action="store_true")
+            command.add_argument("--force", action="store_true")
+        if name in {"report", "handoff"}:
+            command.add_argument(
+                "--minimum-priority",
+                choices=("low", "medium", "high", "critical"),
+                default="low",
+            )
+        if name == "report":
+            command.add_argument("--limit", type=int, default=25)
+
+
+def _write(args, payload, renderer, *, forbidden=()) -> int:
+    report = (
+        json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=True) + "\n"
+        if args.format == "json"
+        else renderer(payload, markdown=args.format == "markdown")
+    )
+    if args.output:
+        if args.output.resolve() in {Path(path).resolve() for path in forbidden}:
+            raise CaseError("report output would overwrite an input")
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(report, encoding="utf-8")
+    else:
+        sys.stdout.write(report)
+    return 0
+
+
+def _render_case(args, comparison) -> str:
+    matrix = isinstance(comparison, MatrixComparison)
+    if args.format == "json":
+        return (render_matrix_json if matrix else render_json)(comparison)
+    if args.format == "html":
+        return (render_matrix_html if matrix else render_html)(comparison)
+    renderer = (
+        (render_matrix_markdown if matrix else render_markdown)
+        if args.format == "markdown"
+        else (render_matrix_text if matrix else render_text)
+    )
+    return renderer(
+        comparison, minimum_priority=args.minimum_priority, limit=args.limit
+    )
+
+
+def run_workflow(args) -> int:
+    if args.command == "validate":
+        if args.minimum_features < 1:
+            raise DocumentError("--minimum-features must be at least 1")
+        documents = []
+        issues = []
+        for path in args.inputs:
+            try:
+                document = load_document(path, minimum_features=args.minimum_features)
+                documents.append(document)
+                issues.extend(document.diagnostics)
+            except DocumentError as exc:
+                issues.append(Diagnostic("invalid-input", "error", str(exc), str(path)))
+        statics = [document for document in documents if document.flavor == "static"]
+        if len(statics) == 1:
+            for document in documents:
+                if document.flavor == "dynamic":
+                    try:
+                        comparison = compare_documents(statics[0], document)
+                        issues.extend(
+                            Diagnostic(
+                                "comparison-context",
+                                "warning",
+                                message,
+                                document.path.name,
+                            )
+                            for message in comparison.warnings
+                        )
+                    except ComparisonError as exc:
+                        issues.append(
+                            Diagnostic(
+                                "incompatible-inputs",
+                                "error",
+                                str(exc),
+                                document.path.name,
+                            )
+                        )
+        elif len(statics) > 1:
+            issues.append(
+                Diagnostic(
+                    "multiple-static-inputs",
+                    "info",
+                    "Individual inputs checked; pairwise compatibility requires exactly one static result.",
+                )
+            )
+        issues = list(dict.fromkeys(issues))
+        result = {
+            "schema": "capagap-validation",
+            "schema_version": 1,
+            "passed": not any(item.severity in {"warning", "error"} for item in issues),
+            "diagnostics": [item.to_dict() for item in issues],
+        }
+        _write(args, result, render_validation, forbidden=args.inputs)
+        return (
+            2
+            if any(item.severity == "error" for item in issues)
+            else 4
+            if not result["passed"]
+            else 0
+        )
+    if args.command == "diff":
+        result = compare_reports(
+            load_report(args.before),
+            load_report(args.after),
+            allow_mismatch=args.allow_mismatch,
+        )
+        _write(args, result, render_diff, forbidden=(args.before, args.after))
+        return 3 if args.fail_on_change and result["changed"] else 0
+    if args.command == "contributions":
+        if args.minimum_features < 1:
+            raise DocumentError("--minimum-features must be at least 1")
+        manifest = (
+            load_ruleset_manifest(args.ruleset_manifest)
+            if args.ruleset_manifest
+            else None
+        )
+        comparison = compare_matrix(
+            load_document(
+                args.static,
+                expected_flavor="static",
+                minimum_features=args.minimum_features,
+            ),
+            [
+                (
+                    label,
+                    load_document(
+                        path,
+                        expected_flavor="dynamic",
+                        minimum_features=args.minimum_features,
+                    ),
+                )
+                for label, path in args.run
+            ],
+            ruleset_manifest=manifest,
+            allow_mismatch=args.allow_mismatch,
+            include_library=args.include_library,
+            experiment_conditions=args.condition,
+            strict=args.strict,
+        )
+        result = analyze_contributions(comparison)
+        protected = (
+            args.static,
+            *(path for _, path in args.run),
+            *((args.ruleset_manifest,) if args.ruleset_manifest else ()),
+        )
+        if args.format == "html":
+            return _write(
+                args,
+                result,
+                lambda *_args, **_kwargs: render_matrix_html(comparison),
+                forbidden=protected,
+            )
+        return _write(args, result, render_contributions, forbidden=protected)
+    if args.case_command == "init":
+        destination = create_case(
+            args.static,
+            args.run,
+            args.output,
+            name=args.name,
+            notes=args.notes,
+            conditions=args.condition,
+            ruleset_path=args.ruleset_manifest,
+            allow_mismatch=args.allow_mismatch,
+            include_library=args.include_library,
+        )
+        print(f"CapaGap case: {destination.resolve()}")
+        return 0
+    case, comparison = load_case(args.path)
+    if args.strict:
+        require_valid(comparison)
+    root = args.path.resolve() if args.path.is_dir() else args.path.resolve().parent
+    protected = [
+        root / "case.json",
+        root / case["static"]["path"],
+        *(root / run["path"] for run in case["runs"]),
+    ]
+    if args.path.is_file():
+        protected.append(args.path)
+    if case.get("ruleset"):
+        protected.append(root / case["ruleset"]["path"])
+    if args.case_command == "verify":
+        result = {
+            **validation_result(comparison),
+            "case_id": case["id"],
+            "name": case["name"],
+            "inputs_verified": True,
+        }
+        return _write(
+            args,
+            result,
+            lambda payload, **kwargs: (
+                "Case inputs and configuration verified.\n"
+                + render_validation(payload, **kwargs)
+            ),
+            forbidden=protected,
+        )
+    if args.case_command == "report":
+        return _write(
+            args,
+            comparison.to_dict(),
+            lambda *_args, **_kwargs: _render_case(args, comparison),
+            forbidden=protected,
+        )
+    if args.output.resolve() == root or args.output.resolve().is_relative_to(
+        root / "inputs"
+    ):
+        raise CaseError("handoff output must not replace the case or its inputs")
+    if isinstance(comparison, MatrixComparison):
+        bundle = build_matrix_handoff(
+            comparison,
+            minimum_priority=args.minimum_priority,
+            never_only=args.never_only,
+        )
+    else:
+        if args.never_only:
+            raise CaseError("--never-only requires at least two runs")
+        bundle = build_single_handoff(
+            comparison,
+            run_label=case["runs"][0]["label"],
+            minimum_priority=args.minimum_priority,
+        )
+    for path in write_handoff(bundle, args.output, tool=args.tool, force=args.force):
+        print(path.resolve())
+    return 0

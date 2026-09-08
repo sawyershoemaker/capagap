@@ -52,7 +52,7 @@
     select("[data-empty-title]").textContent = filtered
       ? "No matching capabilities" : `No ${labels[group]} capabilities`;
     select("[data-empty-message]").textContent = filtered
-      ? "Try another name, namespace, ATT&CK ID, address, or observation state."
+      ? "Try another name, namespace, ATT&CK ID, API, string, process, address, or observation state."
       : group === "comparable"
         ? "Check the runtime-only and excluded views for other matches."
         : group === "runtime"

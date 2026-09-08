@@ -188,6 +188,132 @@ def smoke_install(wheel: Path, version: str) -> None:
             cwd=scratch,
         )
 
+        evidence = examples / "evidence"
+        rich_static = str(evidence / "static.json")
+        rich_runs = [
+            "--run",
+            f"baseline={evidence / 'dynamic.json'}",
+            "--run",
+            f"interactive={evidence / 'dynamic-interactive.json'}",
+            "--condition",
+            "baseline:interaction=off",
+            "--condition",
+            "interactive:interaction=on",
+        ]
+        _run(
+            [
+                command,
+                "validate",
+                rich_static,
+                str(evidence / "dynamic.json"),
+                "--format",
+                "json",
+                "--output",
+                str(scratch / "validation.json"),
+            ],
+            cwd=scratch,
+        )
+        _run(
+            [
+                command,
+                "contributions",
+                rich_static,
+                *rich_runs,
+                "--strict",
+                "--format",
+                "json",
+                "--output",
+                str(scratch / "contributions.json"),
+            ],
+            cwd=scratch,
+        )
+        contributions = json.loads(
+            (scratch / "contributions.json").read_text(encoding="utf-8")
+        )
+        if contributions["union_count"] != 3 or contributions["representative_set"][
+            "labels"
+        ] != ["baseline", "interactive"]:
+            raise ValueError("Installed run-contribution calculation is incorrect")
+        case = scratch / "case"
+        _run(
+            [
+                command,
+                "case",
+                "init",
+                rich_static,
+                *rich_runs,
+                "--name",
+                "Install check",
+                "--notes",
+                "Synthetic inputs",
+                "--output",
+                str(case),
+            ],
+            cwd=scratch,
+        )
+        _run([command, "case", "verify", str(case), "--strict"], cwd=scratch)
+        for format_name in ("html", "json"):
+            _run(
+                [
+                    command,
+                    "case",
+                    "report",
+                    str(case),
+                    "--strict",
+                    "--format",
+                    format_name,
+                    "--output",
+                    str(scratch / f"case.{format_name}"),
+                ],
+                cwd=scratch,
+            )
+        _run(
+            [
+                command,
+                "case",
+                "handoff",
+                str(case),
+                "--strict",
+                "--tool",
+                "json",
+                "--output",
+                str(scratch / "case-handoff"),
+            ],
+            cwd=scratch,
+        )
+        case_report = scratch / "case.json"
+        _run(
+            [
+                command,
+                "diff",
+                str(case_report),
+                str(case_report),
+                "--fail-on-change",
+                "--format",
+                "json",
+                "--output",
+                str(scratch / "unchanged.json"),
+            ],
+            cwd=scratch,
+        )
+        if json.loads((scratch / "unchanged.json").read_text())["changed"]:
+            raise ValueError("Identical saved reports produced a diff")
+        _run(
+            [
+                command,
+                "diff",
+                str(scratch / "matrix.json"),
+                str(case_report),
+                "--format",
+                "json",
+                "--output",
+                str(scratch / "changed.json"),
+            ],
+            cwd=scratch,
+        )
+        if not json.loads((scratch / "changed.json").read_text())["changed"]:
+            raise ValueError("Installed saved-report diff missed changed evidence")
+
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 
+from capagap.diagnostics import require_valid
 from capagap.hotspots import build_evidence_hotspots
 from capagap.manifest import RuleManifest
 from capagap.models import (
@@ -64,6 +66,7 @@ def compare_documents(
     allow_mismatch: bool = False,
     include_library: bool = False,
     ruleset_manifest: RuleManifest | None = None,
+    strict: bool = False,
 ) -> Comparison:
     """Compare static potential with behavior observed in one dynamic run."""
 
@@ -74,8 +77,13 @@ def compare_documents(
 
     warnings: list[str] = []
     confidence = "high"
-    hashes_present = bool(static.sample_sha256 and dynamic.sample_sha256)
-    hashes_match = hashes_present and static.sample_sha256 == dynamic.sample_sha256
+    hashes_present = all(
+        re.fullmatch(r"[0-9a-fA-F]{64}", value)
+        for value in (static.sample_sha256, dynamic.sample_sha256)
+    )
+    hashes_match = (
+        hashes_present and static.sample_sha256.lower() == dynamic.sample_sha256.lower()
+    )
     if hashes_present and not hashes_match:
         message = (
             "sample SHA-256 values differ; the reports may describe different samples"
@@ -88,7 +96,7 @@ def compare_documents(
         confidence = "low"
     elif not hashes_present:
         warnings.append(
-            "one or both reports lack a sample SHA-256; sample identity is unverified"
+            "one or both reports lack a valid sample SHA-256; sample identity is unverified"
         )
         confidence = "medium"
 
@@ -247,7 +255,7 @@ def compare_documents(
             "excluded_unverified_rules": len(ruleset_unverified),
         }
 
-    return Comparison(
+    result = Comparison(
         static=static,
         dynamic=dynamic,
         confidence=confidence,
@@ -263,3 +271,6 @@ def compare_documents(
         source_drift=source_drift,
         metadata=metadata,
     )
+    if strict:
+        require_valid(result)
+    return result

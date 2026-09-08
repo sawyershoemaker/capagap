@@ -9,6 +9,9 @@ from html import escape
 from importlib.resources import files
 from typing import Any
 
+from capagap.contributions import analyze_contributions
+from capagap.diagnostics import comparison_diagnostics
+from capagap.evidence import search_terms
 from capagap.models import (
     CapaDocument,
     Comparison,
@@ -98,6 +101,103 @@ def _definition(label: str, value: str, *, code: bool = False) -> str:
     return f"<div><dt>{_e(label)}</dt><dd>{text}</dd></div>"
 
 
+def _location_context(location: dict) -> str:
+    context = location.get("context", {})
+    return " · ".join(
+        str(context[key])
+        for key in ("process_name", "thread", "call_name", "function")
+        if context.get(key)
+    )
+
+
+def _match_trees(rule: RuleRecord) -> str:
+    matches = [match for match in rule.matches if match.get("tree")]
+    if not matches:
+        return '<p class="muted evidence-note">Detailed match trees were not recorded in this result.</p>'
+    budget = [160]
+    omitted = [False]
+
+    def render_node(node: dict, depth: int = 0) -> str:
+        if budget[0] <= 0 or depth >= 6:
+            omitted[0] = True
+            return '<li class="muted">Further detail is available in Export JSON.</li>'
+        budget[0] -= 1
+        state = (
+            "Matched"
+            if node.get("success") is True
+            else "Not matched"
+            if node.get("success") is False
+            else "Not recorded"
+        )
+        label = str(node.get("label", "Unknown node"))
+        description = node.get("details", {}).get("description", "")
+        locations = []
+        for location in node.get("locations", [])[:8]:
+            context = _location_context(location)
+            locations.append(
+                f"<span><code>{_e(location['display'])}</code>{' · ' + _e(context) if context else ''}</span>"
+            )
+        captures = "".join(
+            f"<li><code>{_e(value)}</code> at {_e(', '.join(location['display'] for location in addresses[:8]))}</li>"
+            for value, addresses in list(node.get("captures", {}).items())[:8]
+        )
+        children = []
+        for child in node.get("children", []):
+            if budget[0] <= 0:
+                omitted[0] = True
+                break
+            children.append(render_node(child, depth + 1))
+        return (
+            '<li><div class="evidence-node">'
+            f'<span class="node-state">{state}</span><code title="{_e(label)}">{_e(label[:512])}</code></div>'
+            + (
+                f'<p class="node-description">{_e(description)}</p>'
+                if description
+                else ""
+            )
+            + (
+                f'<div class="node-locations">{"".join(locations)}</div>'
+                if locations
+                else ""
+            )
+            + (f'<ul class="node-captures">{captures}</ul>' if captures else "")
+            + (
+                f'<ul class="evidence-tree">{"".join(children)}</ul>'
+                if children
+                else ""
+            )
+            + "</li>"
+        )
+
+    blocks = []
+    for match in matches[:8]:
+        if budget[0] <= 0:
+            omitted[0] = True
+            break
+        address = match["address"]
+        context = _location_context(address)
+        blocks.append(
+            '<details class="match-location" open><summary>'
+            f"Match at <code>{_e(address['display'])}</code></summary>"
+            + (f'<p class="muted">{_e(context)}</p>' if context else "")
+            + f'<ul class="evidence-tree">{render_node(match["tree"])}</ul></details>'
+        )
+    note = ""
+    if omitted[0] or len(matches) > 8:
+        note = '<p class="muted evidence-note">This compact view omits detail. Export JSON contains the complete retained evidence.</p>'
+    if rule.evidence_truncated:
+        note += '<p class="evidence-note">Input evidence exceeded the retention limit. Consult the original capa document for omitted data.</p>'
+    if rule.evidence_malformed:
+        note += '<p class="evidence-note">Malformed evidence was omitted. Consult Input diagnostics and the original result.</p>'
+    return (
+        '<details class="match-evidence"><summary>Matched features and rule logic</summary>'
+        '<p class="muted evidence-note">Branch states describe capa rule evaluation, not whether code executed.</p>'
+        + "".join(blocks)
+        + note
+        + "</details>"
+    )
+
+
 def _evidence_block(
     label: str, rule: RuleRecord, base: int | None, static: bool
 ) -> str:
@@ -154,6 +254,7 @@ def _evidence_block(
                 "are retained as reported.</p>"
             )
     count = len(rule.evidence_addresses) or len(rule.evidence)
+    content += _match_trees(rule)
     return (
         f'<section class="evidence-source"><h3>{_e(label)} '
         f'<span class="muted">({count} {"location" if count == 1 else "locations"})'
@@ -163,7 +264,16 @@ def _evidence_block(
 
 def _detail(row: _Row, row_id: str, labels: tuple[str, ...]) -> str:
     item, rule = row.finding, row.finding.rule
-    sources = "".join(_evidence_block(*source) for source in row.evidence)
+    sources = "".join(_evidence_block(*source) for source in row.evidence if source[3])
+    runtime = [source for source in row.evidence if not source[3]]
+    if runtime:
+        runtime_blocks = "".join(_evidence_block(*source) for source in runtime)
+        sources += (
+            '<details class="runtime-evidence"><summary>Runtime evidence '
+            f"({len(runtime)} {'run' if len(runtime) == 1 else 'runs'})</summary>{runtime_blocks}</details>"
+            if row.group != "runtime"
+            else runtime_blocks
+        )
     identifiers = _definition(
         "ATT&CK", ", ".join(rule.attack_ids) or "Not mapped", code=True
     ) + _definition("MBC", ", ".join(rule.mbc_ids) or "Not mapped", code=True)
@@ -268,6 +378,10 @@ def _row_html(row: _Row, index: int, labels: tuple[str, ...], expanded: bool) ->
             *rule.attack_ids,
             *rule.mbc_ids,
             *rule.evidence,
+            *(
+                search_terms(source_rule.matches)
+                for _, source_rule, _, _ in row.evidence
+            ),
             *(address.display for address in rule.evidence_addresses),
             *(
                 value
@@ -318,7 +432,55 @@ def _disclosure(
         f'<details class="report-section" id="{element_id}"'
         f"{' open' if open_by_default else ''}>"
         f"<summary>{_icon('chevron')}<span>{_e(title)}</span></summary>"
-        f'<div class="section-content">{content}</div></details>'
+        f'<div class="section-content"><h2 class="sr-only">{_e(title)}</h2>{content}</div></details>'
+    )
+
+
+def _contributions(comparison: MatrixComparison) -> str:
+    result = analyze_contributions(comparison)
+    rows = []
+    for run in result["runs"]:
+        unique = ", ".join(run["unique_capabilities"]) or "None"
+        added = ", ".join(run["added_vs_baseline"]) or "None"
+        rows.append(
+            f'<tr><th scope="row">{_e(run["label"])}</th><td>{run["observed_count"]}</td>'
+            f"<td>{run['unique_count']}</td><td>{_e(unique)}</td><td>{_e(added)}</td></tr>"
+        )
+    selection = (
+        ", ".join(result["representative_set"]["labels"])
+        or "None: the measured union is empty"
+    )
+    return (
+        '<p class="section-intro">Unique means observed in this run and no other supplied run. '
+        f"Baseline: <strong>{_e(result['baseline'])}</strong>.</p>"
+        '<div class="horizontal-scroll" tabindex="0" role="region" aria-label="Run contribution table">'
+        '<table class="data-table"><caption class="sr-only">Run contributions</caption><thead><tr>'
+        '<th scope="col">Run</th><th scope="col">Observed</th><th scope="col">Unique</th>'
+        '<th scope="col">Unique capabilities</th><th scope="col">Added vs baseline</th>'
+        f"</tr></thead><tbody>{''.join(rows)}</tbody></table></div>"
+        f'<p class="support-heading">Representative set</p><p>{_e(selection)}</p>'
+        '<p class="muted contribution-boundary">A deterministic greedy selection preserving the measured capability union; '
+        "not a guaranteed minimum. Equivalent capability coverage does not establish equivalent behavior. "
+        "Runs with no unique capabilities cannot necessarily all be removed together.</p>"
+        + "".join(
+            f'<p class="evidence-note">{_e(warning)}</p>'
+            for warning in result["warnings"]
+        )
+    )
+
+
+def _diagnostics(comparison: Comparison | MatrixComparison) -> str:
+    issues = comparison_diagnostics(comparison)
+    if not issues:
+        return '<p class="muted">No input-quality issues found.</p>'
+    return (
+        '<ul class="diagnostic-list">'
+        + "".join(
+            f'<li><span class="diagnostic-label">{_e(item.severity.capitalize())} · {_e(item.input or "Comparison")}</span>'
+            f"<code>{_e(item.code)}</code><p>{_e(item.message)}</p></li>"
+            for item in issues
+        )
+        + "</ul>"
     )
 
 
@@ -415,6 +577,21 @@ def _input_details(
             + _definition("capa version", document.capa_version)
             + _definition("Extractor", document.extractor)
             + _definition(
+                "Result SHA-256",
+                document.provenance.get("content_sha256", "Not recorded"),
+                code=True,
+            )
+            + _definition(
+                "Analyzed at", document.provenance.get("timestamp") or "Not recorded"
+            )
+            + _definition(
+                "Invocation",
+                " ".join(document.provenance["argv"])
+                if document.provenance.get("argv") is not None
+                else "Not recorded",
+                code=True,
+            )
+            + _definition(
                 "Platform", f"{document.os} / {document.arch} / {document.format}"
             )
         )
@@ -470,6 +647,16 @@ def _rows(
             else (("dynamic",) if item.status == "observed" else ()),
             evidence=(
                 ("Static evidence", item.rule, comparison.static.base_address, True),
+            )
+            + tuple(
+                (
+                    run.label + " evidence",
+                    run.comparison.dynamic.rules[item.rule.name],
+                    None,
+                    False,
+                )
+                for run in runs
+                if item.rule.name in run.comparison.dynamic.rules
             ),
         )
         for item in comparable
@@ -540,7 +727,12 @@ def _render(comparison: Comparison | MatrixComparison) -> str:
         _row_html(row, index, labels, index == 0 and row.group == "comparable")
         for index, row in enumerate(rows)
     )
-    warning_list = comparison.warnings
+    warning_list = comparison.warnings + tuple(
+        f"{item.input}: {item.message}"
+        for document in [comparison.static, *(run.comparison.dynamic for run in runs)]
+        for item in document.diagnostics
+        if item.severity in {"warning", "error"}
+    )
     experiment_warnings = comparison.experiment_warnings if matrix else ()
     warning_count = len(warning_list) + len(experiment_warnings)
     warning_notice = (
@@ -568,6 +760,34 @@ def _render(comparison: Comparison | MatrixComparison) -> str:
             _input_details(static, runs, comparison.confidence),
         )
     )
+    if matrix:
+        sections = (
+            _disclosure(
+                "run-contributions", "Run contributions", _contributions(comparison)
+            )
+            + sections
+        )
+    sections += _disclosure(
+        "input-diagnostics", "Input diagnostics", _diagnostics(comparison)
+    )
+    case = comparison.metadata.get("case")
+    if isinstance(case, dict):
+        sections = (
+            _disclosure(
+                "case-details",
+                case["name"] + " · Case notes",
+                '<dl class="key-values">'
+                + _definition("Case ID", case["id"], code=True)
+                + _definition("Input verification", "Pinned input hashes verified")
+                + "</dl>"
+                + (
+                    f'<p class="case-notes">{_e(case["notes"])}</p>'
+                    if case["notes"]
+                    else '<p class="muted">No analyst notes recorded. Edit notes in case.json and regenerate the report.</p>'
+                ),
+            )
+            + sections
+        )
     gates = comparison.gate_signals if matrix else {"dynamic": comparison.gate_signals}
     gates = {label: signals for label, signals in gates.items() if signals}
     if gates:
@@ -647,6 +867,7 @@ def _render(comparison: Comparison | MatrixComparison) -> str:
   <nav aria-label="Report sections">
     <a class="active" href="#capability-matrix" data-matrix-link>Matrix</a>
     <a href="#run-conditions" data-open-section>{conditions_title}</a>
+{'    <a href="#run-contributions" data-open-section>Run contributions</a>' if matrix else ""}
     <a href="#evidence-hotspots" data-open-section>Evidence hotspots</a>
   </nav>
   <div class="filters js-only">

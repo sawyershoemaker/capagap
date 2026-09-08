@@ -8,6 +8,9 @@ from pathlib import Path
 
 from capagap import __version__
 from capagap.analysis import ComparisonError, compare_documents
+from capagap.cases import CaseError
+from capagap.diagnostics import ValidationError
+from capagap.diff import DiffError
 from capagap.handoff import (
     HandoffError,
     build_matrix_handoff,
@@ -40,9 +43,21 @@ from capagap.triage import (
     render_triage_report,
     write_json,
 )
+from capagap.workflows import register_commands, run_workflow
 
 
 def _add_report_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="stop on input-quality or comparison warnings",
+    )
+    parser.add_argument(
+        "--minimum-features",
+        type=int,
+        default=1,
+        help="warn below this extracted-feature count (default: 1)",
+    )
     parser.add_argument(
         "--format",
         choices=("text", "markdown", "json", "html"),
@@ -258,6 +273,11 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="overwrite handoff files that already exist",
     )
+    handoff.add_argument("--strict", action="store_true")
+    handoff.add_argument("--minimum-features", type=int, default=1)
+    register_commands(
+        subcommands, _add_report_arguments, _run_argument, _condition_argument
+    )
     return parser
 
 
@@ -300,6 +320,20 @@ def _render_matrix(args: argparse.Namespace, comparison) -> str:
 def _write_report(args: argparse.Namespace, report: str) -> int:
     if args.output:
         try:
+            inputs = [
+                getattr(args, "static", None),
+                getattr(args, "dynamic", None),
+                getattr(args, "ruleset_manifest", None),
+            ]
+            inputs.extend(path for _, path in getattr(args, "run", []))
+            if args.output.resolve() in {
+                Path(path).resolve() for path in inputs if path is not None
+            }:
+                print(
+                    "capagap: error: report output would overwrite an input",
+                    file=sys.stderr,
+                )
+                return 2
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(report, encoding="utf-8")
         except OSError as exc:
@@ -320,8 +354,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if hasattr(args, "limit") and args.limit < 1:
         parser.error("--limit must be at least 1")
+    if hasattr(args, "minimum_features") and args.minimum_features < 1:
+        parser.error("--minimum-features must be at least 1")
 
     try:
+        if args.command in {"case", "validate", "diff", "contributions"}:
+            return run_workflow(args)
         if args.command == "manifest":
             manifest = build_ruleset_manifest(args.rules)
             destination = write_ruleset_manifest(
@@ -359,20 +397,36 @@ def main(argv: list[str] | None = None) -> int:
             if args.ruleset_manifest
             else None
         )
-        static = load_document(args.static, expected_flavor="static")
+        static = load_document(
+            args.static,
+            expected_flavor="static",
+            minimum_features=args.minimum_features,
+        )
         if args.command == "compare":
-            dynamic = load_document(args.dynamic, expected_flavor="dynamic")
+            dynamic = load_document(
+                args.dynamic,
+                expected_flavor="dynamic",
+                minimum_features=args.minimum_features,
+            )
             comparison = compare_documents(
                 static,
                 dynamic,
                 allow_mismatch=args.allow_mismatch,
                 include_library=args.include_library,
                 ruleset_manifest=ruleset_manifest,
+                strict=args.strict,
             )
             report = _render(args, comparison)
         elif args.command == "matrix":
             dynamic_runs = [
-                (label, load_document(path, expected_flavor="dynamic"))
+                (
+                    label,
+                    load_document(
+                        path,
+                        expected_flavor="dynamic",
+                        minimum_features=args.minimum_features,
+                    ),
+                )
                 for label, path in args.run
             ]
             comparison = compare_matrix(
@@ -382,11 +436,19 @@ def main(argv: list[str] | None = None) -> int:
                 include_library=args.include_library,
                 ruleset_manifest=ruleset_manifest,
                 experiment_conditions=args.condition,
+                strict=args.strict,
             )
             report = _render_matrix(args, comparison)
         else:
             dynamic_runs = [
-                (label, load_document(path, expected_flavor="dynamic"))
+                (
+                    label,
+                    load_document(
+                        path,
+                        expected_flavor="dynamic",
+                        minimum_features=args.minimum_features,
+                    ),
+                )
                 for label, path in args.run
             ]
             if len(dynamic_runs) == 1:
@@ -401,6 +463,7 @@ def main(argv: list[str] | None = None) -> int:
                     allow_mismatch=args.allow_mismatch,
                     include_library=args.include_library,
                     ruleset_manifest=ruleset_manifest,
+                    strict=args.strict,
                 )
                 bundle = build_single_handoff(
                     comparison,
@@ -415,6 +478,7 @@ def main(argv: list[str] | None = None) -> int:
                     include_library=args.include_library,
                     ruleset_manifest=ruleset_manifest,
                     experiment_conditions=args.condition,
+                    strict=args.strict,
                 )
                 bundle = build_matrix_handoff(
                     comparison,
@@ -436,12 +500,20 @@ def main(argv: list[str] | None = None) -> int:
             for path in written:
                 print(f"  {path.resolve()}")
             return 0
+    except ValidationError as exc:
+        print(f"capagap: error: {exc}", file=sys.stderr)
+        return 4
+    except BrokenPipeError:
+        return 0
     except (
         DocumentError,
         ComparisonError,
         HandoffError,
         ManifestError,
         TriageError,
+        CaseError,
+        DiffError,
+        OSError,
     ) as exc:
         print(f"capagap: error: {exc}", file=sys.stderr)
         return 2

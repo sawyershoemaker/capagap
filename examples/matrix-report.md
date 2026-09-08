@@ -57,3 +57,14 @@ Exact mapped RVAs shared by findings; no control-flow relationship is inferred.
 ## Interpretation boundary
 
 A capability that changes across runs is environment-sensitive evidence, not proof that any one setting caused the behavior. Use controlled experiments that change one condition at a time.
+
+## Run contributions
+
+Baseline: baseline
+- baseline: 2 observed; 1 unique; 0 added vs baseline
+  Unique: check for sandbox process names
+- interactive: 2 observed; 1 unique; 1 added vs baseline
+  Unique: create scheduled task
+
+Representative set (greedy): baseline, interactive
+This covers matched comparable capabilities, not execution paths or all behavior. Individually redundant runs cannot necessarily all be removed together. The greedy representative set is not guaranteed to be the smallest.
