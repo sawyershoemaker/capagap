@@ -138,7 +138,18 @@ capagap case handoff CASE --tool all --output reports/handoff
 
 `CASE` can be a directory or its manifest file. `init` accepts one to 128 runs, `--condition LABEL:KEY=VALUE`, `--ruleset-manifest`, `--include-library`, and `--allow-mismatch`. It never replaces an existing destination. Inputs are copied as decompressed JSON under `inputs/`; the optional ruleset is copied too. No sample files are copied or executed.
 
-The manifest pins SHA-256 hashes, relative paths, labels, conditions, and comparison options in a case identity. A changed file, unsafe path, or changed configuration stops verification. The identity is a mix-up/tamper-detection aid, not a signature: someone who can edit the manifest can recompute it. `name` and `notes` deliberately remain editable. Preserve earlier cases and capture new snapshots when adding runs or changing settings.
+The manifest pins SHA-256 hashes, relative paths, labels, conditions, and comparison options in a case identity. A changed file, unsafe path, or changed configuration stops verification. The identity is a mix-up/tamper-detection aid, not a signature: someone who can edit the manifest can recompute it. `name` and `notes` deliberately remain editable.
+
+Add runs without rebuilding the command or modifying the original case:
+
+```sh
+capagap case add-run reports/case --run repeat=repeat.json --output reports/case-2
+capagap case history reports/case-2 --format json
+```
+
+`add-run` creates a new, self-contained revision and reports newly observed and still-unobserved comparable capabilities. Repeat `--run` and `--condition` to add several runs with their declared settings. Existing labels, conditions, inputs, and options cannot be replaced. `--name` and `--notes` optionally override the inherited text. `--format json` writes the revision summary to stdout; `--output` always names the new directory. The destination must not exist or be inside the parent case.
+
+Revisions use case schema 2; original schema-1 cases remain readable. `history` accepts text, Markdown, or JSON and records ancestor identities and run labels without requiring the parent directories. History is covered by the new case identity, but does not authenticate historical snapshots. Keep earlier cases if their original manifests or notes are needed. Changed comparison settings require `case init`.
 
 `verify` verifies integrity and displays quality diagnostics. Integrity success returns `0` even if quality warnings exist; add `--strict` to return `4` for warnings. `report` accepts all four output formats, `--minimum-priority`, and `--limit`. `handoff` accepts `--tool`, `--minimum-priority`, `--never-only` (multiple runs), and `--force`. All three accept `--strict`. Reports and handoffs retain case identity, notes, conditions, and provenance. Neither reports nor handoffs can overwrite the case manifest or any pinned input, including custom input paths and hard links, even with `--force`.
 

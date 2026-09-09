@@ -89,7 +89,7 @@ capagap case verify reports/interaction-case
 capagap case report reports/interaction-case --format html --output reports/case.html
 ```
 
-A case copies the result JSON into a portable directory and pins its hashes, run settings, and optional ruleset manifest. Move the whole directory to another machine. You can edit `name` and `notes` in `case.json`; changed inputs or comparison settings require a new case. Cases contain result documents, not samples. `case handoff` exports annotations from the same pinned inputs.
+A case copies the result JSON into a portable directory and pins its hashes, run settings, and optional ruleset manifest. Move the whole directory to another machine. `case add-run` captures additional runs in a new revision while preserving the original. You can edit `name` and `notes` in `case.json`; changed comparison settings require a new case. Cases contain result documents, not samples. `case handoff` exports annotations from the same pinned inputs.
 
 ### Compare saved reports
 

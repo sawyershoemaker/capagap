@@ -8,7 +8,14 @@ import sys
 from pathlib import Path
 
 from capagap.analysis import ComparisonError, compare_documents
-from capagap.cases import CaseError, create_case, load_case
+from capagap.cases import (
+    CaseError,
+    add_case_runs,
+    case_history,
+    create_case,
+    load_case,
+    render_case_history,
+)
 from capagap.contributions import analyze_contributions, render_contributions
 from capagap.diagnostics import (
     Diagnostic,
@@ -105,7 +112,21 @@ def register_commands(
     init.add_argument("--ruleset-manifest", type=Path)
     init.add_argument("--allow-mismatch", action="store_true")
     init.add_argument("--include-library", action="store_true")
-    for name in ("verify", "report", "handoff"):
+    add_run = commands.add_parser(
+        "add-run", help="append runs into a new case revision"
+    )
+    add_run.add_argument("path", type=Path)
+    add_run.add_argument(
+        "--run", required=True, action="append", type=run_argument, metavar="LABEL=PATH"
+    )
+    add_run.add_argument(
+        "--condition", action="append", default=[], type=condition_argument
+    )
+    add_run.add_argument("--output", required=True, type=Path, metavar="NEW_DIRECTORY")
+    add_run.add_argument("--name")
+    add_run.add_argument("--notes")
+    add_run.add_argument("--format", choices=("text", "json"), default="text")
+    for name in ("verify", "report", "handoff", "history"):
         command = commands.add_parser(name)
         command.add_argument("path", type=Path, help="case directory or case.json")
         command.add_argument(
@@ -288,6 +309,25 @@ def run_workflow(args) -> int:
         )
         print(f"CapaGap case: {destination.resolve()}")
         return 0
+    if args.case_command == "add-run":
+        destination, delta = add_case_runs(
+            args.path,
+            args.run,
+            args.output,
+            conditions=args.condition,
+            name=args.name,
+            notes=args.notes,
+        )
+        if args.format == "json":
+            print(json.dumps(delta, indent=2, ensure_ascii=True))
+        else:
+            print(f"CapaGap case revision {delta['revision']}: {destination.resolve()}")
+            print(f"Added runs: {', '.join(delta['added_runs'])}")
+            print(f"Newly observed: {len(delta['newly_observed'])}")
+            for rule in delta["newly_observed"]:
+                print("  " + " ".join(rule.split()))
+            print(f"Still unobserved: {len(delta['still_unobserved'])}")
+        return 0
     case, comparison = load_case(args.path)
     if args.strict:
         require_valid(comparison)
@@ -301,6 +341,10 @@ def run_workflow(args) -> int:
         protected.append(args.path)
     if case.get("ruleset"):
         protected.append(root / case["ruleset"]["path"])
+    if args.case_command == "history":
+        return _write(
+            args, case_history(case), render_case_history, forbidden=protected
+        )
     if args.case_command == "verify":
         result = {
             **validation_result(comparison),

@@ -15,6 +15,7 @@ from capagap.io import MAX_INPUT_BYTES, _read_bytes, load_document
 from capagap.jsonio import decode_json
 from capagap.manifest import load_ruleset_manifest
 from capagap.matrix import compare_matrix
+from capagap.models import MatrixComparison
 
 MAX_CASE_BYTES = 2 * 1024 * 1024
 MAX_RUNS = 128
@@ -38,6 +39,8 @@ def _digest(path: Path) -> str:
 
 def _identity(case: dict) -> str:
     identity = {key: case.get(key) for key in ("static", "runs", "ruleset", "options")}
+    if case.get("schema_version") == 2:
+        identity["history"] = case.get("history")
     return hashlib.sha256(
         json.dumps(identity, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
@@ -89,7 +92,7 @@ def load_case(path: str | Path) -> tuple[dict[str, Any], Any]:
         not isinstance(case, dict)
         or case.get("schema") != "capagap-case"
         or type(case.get("schema_version")) is not int
-        or case["schema_version"] != 1
+        or case["schema_version"] not in (1, 2)
     ):
         raise CaseError("unsupported case schema")
     for field in ("name", "notes"):
@@ -129,6 +132,7 @@ def load_case(path: str | Path) -> tuple[dict[str, Any], Any]:
         or any(type(value) is not bool for value in options.values())
     ):
         raise CaseError("invalid case comparison options")
+    _validate_history(case)
     if case.get("id") != _identity(case):
         raise CaseError(
             "case configuration differs from its recorded identity; create a new snapshot"
@@ -166,6 +170,10 @@ def load_case(path: str | Path) -> tuple[dict[str, Any], Any]:
             "run_labels": [run["label"] for run in runs],
             "conditions": {run["label"]: run["conditions"] for run in runs},
             "inputs_verified": True,
+            "revision": len(case.get("history", [])) + 1,
+            "parent_id": case.get("history", [{}])[-1].get("id")
+            if case.get("history")
+            else None,
         },
     }
     return case, replace(comparison, metadata=metadata)
@@ -257,3 +265,161 @@ def create_case(
             raise CaseError("case destination appeared during capture")
         staging.rename(target)
     return target / "case.json"
+
+
+def _validate_history(case: dict[str, Any]) -> None:
+    history = case.get("history", [])
+    if not isinstance(case.get("id"), str):
+        raise CaseError("case identity must be text")
+    if case["schema_version"] == 1:
+        if history != []:
+            raise CaseError("legacy cases cannot contain revision history")
+        return
+    if not isinstance(history, list) or not 1 <= len(history) < MAX_RUNS:
+        raise CaseError("a revised case requires bounded revision history")
+    labels = [run["label"] for run in case["runs"]]
+    previous_count = 0
+    identities = {case.get("id")}
+    for entry in history:
+        if (
+            not isinstance(entry, dict)
+            or set(entry) != {"id", "run_labels"}
+            or not isinstance(entry["id"], str)
+            or not re.fullmatch(r"[0-9a-f]{64}", entry["id"])
+            or entry["id"] in identities
+            or not isinstance(entry["run_labels"], list)
+            or not previous_count < len(entry["run_labels"]) < len(labels)
+            or entry["run_labels"] != labels[: len(entry["run_labels"])]
+        ):
+            raise CaseError("invalid case revision history")
+        identities.add(entry["id"])
+        previous_count = len(entry["run_labels"])
+
+
+def case_history(case: dict[str, Any]) -> dict[str, Any]:
+    """Recorded ancestor identities, not authentication of historical snapshots."""
+    return {
+        "schema": "capagap-case-history",
+        "schema_version": 1,
+        "revisions": [
+            {"revision": index, **entry}
+            for index, entry in enumerate(
+                [
+                    *case.get("history", []),
+                    {
+                        "id": case["id"],
+                        "run_labels": [r["label"] for r in case["runs"]],
+                    },
+                ],
+                1,
+            )
+        ],
+    }
+
+
+def render_case_history(result: dict[str, Any], *, markdown: bool = False) -> str:
+    lines = [("## " if markdown else "") + "Case history", ""]
+    for entry in result["revisions"]:
+        lines.append(
+            f"- Revision {entry['revision']}: {entry['id']} ({len(entry['run_labels'])} runs)"
+        )
+    lines.append("Ancestor identities are recorded references, not signatures.")
+    return "\n".join(lines) + "\n"
+
+
+def _observations(comparison) -> tuple[set[str], set[str]]:
+    if isinstance(comparison, MatrixComparison):
+        return (
+            {f.rule.name for f in comparison.findings if f.observed_in},
+            {f.rule.name for f in comparison.never_observed},
+        )
+    return (
+        {f.rule.name for f in comparison.observed},
+        {f.rule.name for f in comparison.unobserved},
+    )
+
+
+def add_case_runs(
+    path: str | Path,
+    runs: list[tuple[str, Path]],
+    destination: str | Path,
+    *,
+    conditions: list[tuple[str, str, str]] | tuple = (),
+    name: str | None = None,
+    notes: str | None = None,
+) -> tuple[Path, dict[str, Any]]:
+    """Append runs into a verified new snapshot without modifying the parent."""
+    source = _case_path(path).resolve()
+    parent, before = load_case(source)
+    target = Path(destination).absolute()
+    if target.exists() or target.is_symlink():
+        raise CaseError(f"case destination already exists: {target}")
+    if target.resolve().is_relative_to(source.parent):
+        raise CaseError("a revision must be outside its parent case directory")
+    if not runs:
+        raise CaseError("a revision requires at least one new run")
+    old_labels = {run["label"] for run in parent["runs"]}
+    new_labels = {label for label, _ in runs}
+    if old_labels & new_labels:
+        raise CaseError("new run labels must not replace existing runs")
+    if any(label not in new_labels for label, _, _ in conditions):
+        raise CaseError("revision conditions may only describe new runs")
+    combined = [
+        (run["label"], _resolve(source.parent, run)) for run in parent["runs"]
+    ] + runs
+    declared = [
+        (run["label"], key, value)
+        for run in parent["runs"]
+        for key, value in run["conditions"].items()
+    ] + list(conditions)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(
+        prefix=".capagap-revision-", dir=target.parent
+    ) as temp:
+        staged = create_case(
+            _resolve(source.parent, parent["static"]),
+            combined,
+            Path(temp) / "case",
+            name=parent["name"] if name is None else name,
+            notes=parent["notes"] if notes is None else notes,
+            conditions=declared,
+            ruleset_path=_resolve(source.parent, parent["ruleset"])
+            if parent.get("ruleset")
+            else None,
+            **parent["options"],
+        )
+        revised, _ = load_case(staged)
+        old_entries = [parent["static"], *parent["runs"]]
+        new_entries = [revised["static"], *revised["runs"][: len(parent["runs"])]]
+        if parent.get("ruleset"):
+            old_entries.append(parent["ruleset"])
+            new_entries.append(revised["ruleset"])
+        if any(a["sha256"] != b["sha256"] for a, b in zip(old_entries, new_entries)):
+            raise CaseError("parent input changed during revision capture")
+        revised["schema_version"] = 2
+        revised["history"] = [
+            *parent.get("history", []),
+            {
+                "id": parent["id"],
+                "run_labels": [run["label"] for run in parent["runs"]],
+            },
+        ]
+        revised["id"] = _identity(revised)
+        staged.write_text(json.dumps(revised, indent=2) + "\n", encoding="utf-8")
+        _, after = load_case(staged)
+        old_observed, _ = _observations(before)
+        new_observed, missing = _observations(after)
+        delta = {
+            "schema": "capagap-case-revision",
+            "schema_version": 1,
+            "parent_id": parent["id"],
+            "case_id": revised["id"],
+            "revision": len(revised["history"]) + 1,
+            "added_runs": [label for label, _ in runs],
+            "newly_observed": sorted(new_observed - old_observed),
+            "still_unobserved": sorted(missing),
+        }
+        if target.exists() or target.is_symlink():
+            raise CaseError("case destination appeared during capture")
+        staged.parent.rename(target)
+    return target / "case.json", delta
