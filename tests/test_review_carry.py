@@ -97,6 +97,78 @@ class ReviewCarryTests(WorkflowTestCase):
         after["analysis"]["source_image_base"] += 4096
         with self.assertRaisesRegex(TriageError, "context changed"):
             apply_triage(after, self.worksheet)
+        with self.assertRaisesRegex(TriageError, "context changed"):
+            carry_triage(after, self.worksheet, after)
+
+    def test_applied_reviews_retain_their_evidence_basis(self):
+        reviewed = apply_triage(self.before, self.worksheet)
+        for finding, review in zip(reviewed["findings"], self.worksheet["reviews"]):
+            self.assertEqual(finding["triage"]["basis"], review["basis"])
+        self.assertNotIn("triage", self.before["findings"][0])
+
+    def test_unchanged_applied_review_survives_a_partial_worksheet(self):
+        reviewed = apply_triage(self.before, self.worksheet)
+        partial = build_triage_worksheet(reviewed)
+        partial["reviews"] = []
+        result = carry_triage(reviewed, partial, reviewed)
+        self.assertEqual(result["reviews"][0]["disposition"], "confirmed")
+        self.assertEqual(result["migration"]["needs_review"], [])
+        self.assertEqual(
+            apply_triage(reviewed, partial)["findings"][0]["triage"],
+            reviewed["findings"][0]["triage"],
+        )
+
+    def test_stale_applied_review_is_reassessed_with_a_partial_worksheet(self):
+        changed = apply_triage(self.before, self.worksheet)
+        changed["analysis"]["source_image_base"] += 4096
+        partial = build_triage_worksheet(changed)
+        partial["reviews"] = []
+        result = carry_triage(changed, partial, changed)
+        self.assertEqual(result["reviews"][0]["disposition"], "unreviewed")
+        self.assertEqual(result["reviews"][0]["analyst_notes"], "Breakpoint reached")
+        record = result["migration"]["needs_review"][0]
+        self.assertIn("applied-basis-unverified", record["reasons"])
+        self.assertEqual(record["previous_review"]["disposition"], "confirmed")
+        self.assertEqual(
+            record["previous_review"]["basis"], self.worksheet["reviews"][0]["basis"]
+        )
+        apply_triage(changed, result)
+
+    def test_apply_and_report_reject_stale_inherited_review_bases(self):
+        changed = apply_triage(self.before, self.worksheet)
+        changed["analysis"]["source_image_base"] += 4096
+        for schema_version in (1, 2):
+            partial = build_triage_worksheet(changed)
+            partial.update(schema_version=schema_version, reviews=[])
+            for operation in (apply_triage, render_triage_report):
+                with self.subTest(schema=schema_version, operation=operation.__name__):
+                    with self.assertRaisesRegex(TriageError, "applied review"):
+                        operation(changed, partial)
+
+    def test_legacy_applied_reviews_remain_readable_but_cannot_be_verified(self):
+        reviewed = apply_triage(self.before, self.worksheet)
+        for finding in reviewed["findings"]:
+            finding["triage"].pop("basis")
+        partial = build_triage_worksheet(reviewed)
+        partial["reviews"] = []
+        applied = apply_triage(reviewed, partial)
+        self.assertEqual(applied["findings"][0]["triage"]["disposition"], "confirmed")
+        result = carry_triage(reviewed, partial, reviewed)
+        self.assertEqual(result["reviews"][0]["disposition"], "unreviewed")
+        self.assertIn(
+            "applied-basis-unverified",
+            result["migration"]["needs_review"][0]["reasons"],
+        )
+
+    def test_invalid_applied_basis_is_rejected(self):
+        for basis in (None, "", "not-a-digest", 123):
+            reviewed = apply_triage(self.before, self.worksheet)
+            reviewed["findings"][0]["triage"]["basis"] = basis
+            with (
+                self.subTest(basis=basis),
+                self.assertRaisesRegex(TriageError, "basis"),
+            ):
+                build_triage_worksheet(reviewed)
 
     def test_rejects_incorrect_evidence_fingerprints(self):
         after = copy.deepcopy(self.before)
@@ -126,12 +198,11 @@ class ReviewCarryTests(WorkflowTestCase):
         self.assertEqual(result["reviews"][0]["disposition"], "unreviewed")
 
     def test_sample_mismatch_and_duplicate_names_are_rejected(self):
-        for sample in ("", "a" * 64):
+        for sample in ("", "f" * 64):
             after = copy.deepcopy(self.before)
             after["analysis"]["sample"]["sha256"] = sample
-            if sample != self.before["analysis"]["sample"]["sha256"]:
-                with self.assertRaises(TriageError):
-                    carry_triage(self.before, self.worksheet, after)
+            with self.subTest(sample=sample), self.assertRaises(TriageError):
+                carry_triage(self.before, self.worksheet, after)
         after = copy.deepcopy(self.before)
         after["findings"][1]["name"] = after["findings"][0]["name"]
         with self.assertRaisesRegex(TriageError, "unique"):

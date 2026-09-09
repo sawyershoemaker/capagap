@@ -247,7 +247,7 @@ Unchanged, verifiable reviews retain their dispositions. Changed rules, evidence
 
 Carry requires the same valid sample SHA-256 and refuses duplicate rule names. The output cannot overwrite any of its three inputs, even with `--force`; preserve earlier worksheets for the complete review history. After reviewing the new evidence, edit the disposition and reviewer/date, then use `triage apply` normally. `triage report` includes the number still awaiting reassessment. Moving files or editing case names/notes alone does not invalidate a review; changed input bytes do.
 
-Partial worksheets are accepted. An omitted finding keeps its previously applied review, or counts as `unreviewed` if it has none. `report` and `apply` use the same rules and include every handoff finding in their totals. Unknown finding IDs, duplicate JSON keys, and malformed review fields are errors.
+Partial worksheets are accepted. An omitted finding keeps its previously applied review, or counts as `unreviewed` if it has none. Applied schema-2 reviews retain their evidence basis: `report` and `apply` reject an inherited review when that basis has changed. `carry` preserves its notes but requires reassessment; inherited legacy reviews without a basis also require reassessment during carry. `report` and `apply` use the same rules and include every handoff finding in their totals. Unknown finding IDs, duplicate JSON keys, and malformed review fields are errors.
 
 `init` and `apply` require `--force` to replace an existing output. `report` accepts `text` or `markdown` and overwrites its output path if one is supplied. Applying a worksheet writes a new handoff; it does not modify the original unless explicitly given the same path with `--force`.
 

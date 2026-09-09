@@ -290,6 +290,8 @@ def _validate_review_fields(review: dict[str, Any], label: str) -> None:
     for field in ("analyst_notes", "evidence", "reviewer", "reviewed_at"):
         if not isinstance(review.get(field, ""), str):
             raise TriageError(f"{label} field {field!r} must be text")
+    if "basis" in review and not _valid_digest(review["basis"]):
+        raise TriageError(f"{label} has an invalid evidence basis")
 
 
 def _validate_triage(payload: dict[str, Any]) -> dict[str, Any]:
@@ -353,10 +355,17 @@ def _one_line(value: str) -> str:
 
 
 def apply_triage(bundle: dict[str, Any], worksheet: dict[str, Any]) -> dict[str, Any]:
+    return _apply_triage(bundle, worksheet, carrying=False)
+
+
+def _apply_triage(
+    bundle: dict[str, Any], worksheet: dict[str, Any], *, carrying: bool
+) -> dict[str, Any]:
     _validate_handoff(bundle)
     _validate_triage(worksheet)
     if worksheet.get("handoff_identity") != _handoff_identity(bundle):
         raise TriageError("triage worksheet does not belong to this handoff")
+    bases = None
     if worksheet["schema_version"] == 2:
         bases = _review_bases(bundle)
         if worksheet["handoff_context"] != _worksheet_context(bundle, bases):
@@ -373,6 +382,17 @@ def apply_triage(bundle: dict[str, Any], worksheet: dict[str, Any]) -> dict[str,
         raise TriageError(
             f"triage worksheet contains unknown finding id: {min(unknown)}"
         )
+    if not carrying:
+        for finding in bundle["findings"]:
+            applied = finding.get("triage", {})
+            if finding["id"] in reviews or "basis" not in applied:
+                continue
+            if bases is None:
+                bases = _review_bases(bundle)
+            if applied["basis"] != _hash(bases[finding["id"]]):
+                raise TriageError(
+                    "applied review evidence or context changed; use triage carry with the original handoff"
+                )
 
     reviewed = copy.deepcopy(bundle)
     reviewed["analysis"]["triage_applied"] = True
@@ -390,6 +410,8 @@ def apply_triage(bundle: dict[str, Any], worksheet: dict[str, Any]) -> dict[str,
                 "reviewed_at",
             )
         }
+        if worksheet["schema_version"] == 2:
+            finding["triage"]["basis"] = review["basis"]
         marker = f"[CapaGap:{finding['id']}]"
         base = finding.get("comment", marker).split(" | triage:", 1)[0]
         disposition = review["disposition"]
@@ -410,7 +432,9 @@ def carry_triage(
     before: dict[str, Any], worksheet: dict[str, Any], after: dict[str, Any]
 ) -> dict[str, Any]:
     """Transfer reviews, preserving notes but never silently retaining stale judgments."""
-    reviewed = apply_triage(before, worksheet)
+    # Inherited judgments can be archived here even when their recorded basis
+    # is stale. Explicit worksheet entries must still match the source handoff.
+    reviewed = _apply_triage(before, worksheet, carrying=True)
     _validate_handoff(after)
     old_sample, new_sample = (
         before["analysis"]["sample"].get("sha256"),
@@ -425,6 +449,7 @@ def carry_triage(
         ) != len(names):
             raise TriageError("review carry requires unique, nonempty rule names")
     old_bases, new_bases = _review_bases(before), _review_bases(after)
+    explicit_reviews = {review["id"] for review in worksheet["reviews"]}
     previous = {finding["name"]: finding for finding in reviewed["findings"]}
     result = build_triage_worksheet(after)
     migration = {"retained": [], "needs_review": [], "new": [], "removed_reviews": []}
@@ -451,6 +476,12 @@ def carry_triage(
             or worksheet["schema_version"] == 1
         ):
             reasons.append("prior-basis-unverified")
+        if (
+            prior["id"] not in explicit_reviews
+            and "triage" in prior
+            and prior["triage"].get("basis") != _hash(old)
+        ):
+            reasons.append("applied-basis-unverified")
         for field in fields:
             review[field] = prior_review.get(
                 field, "unreviewed" if field == "disposition" else ""
