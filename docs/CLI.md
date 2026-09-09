@@ -177,6 +177,18 @@ Accepts matrix input and report options, including `--condition`, `--ruleset-man
 
 Only comparable static capabilities enter this calculation. The greedy representative set repeatedly chooses the run covering the most remaining capabilities, breaking ties by input order. It preserves the supplied union but is not guaranteed minimal. A run can be individually redundant while still being needed if another redundant run is removed. Do not delete traces based solely on this result.
 
+## batch
+
+```sh
+capagap batch results --recursive --output reports/batch
+```
+
+Discovers `.json` and `.json.gz` files and groups only by valid sample SHA-256. Each sample requires exactly one distinct static result and at least one dynamic result. Byte-identical copies, including compressed copies, are recorded as duplicates. Multiple distinct static results are ambiguous: select the intended inputs yourself. Relative filenames become stable run labels; their lexical order selects the baseline. Conditions are undeclared, not inferred from filenames.
+
+The new output directory contains `index.md`, `index.json`, and a hash-named directory for each completed sample with a portable case, `report.json`, and an HTML report. `--format text|markdown|json|html` selects the human report; JSON is always retained. The index orders completed samples by gap investigation priority, not severity. Failed samples and rejected inputs remain visible. Output must be outside the input directory and must not exist. Reports are staged before the completed directory is exposed.
+
+Accepts `--ruleset-manifest`, `--include-library`, and `--minimum-features`. `--strict` marks samples with quality or compatibility warnings as failed; undeclared experimental conditions alone do not fail a batch. Exit `0` means all discovered result inputs were processed or deduplicated; `4` means the index contains failures or rejected inputs; `2` means a fatal setup/output error. Non-JSON files are ignored. Discovery is limited to 1,000 result files and 10,000 directory entries, and cases retain the 128-run limit. Linked directories and files are not followed.
+
 ## repeatability
 
 ```sh

@@ -78,7 +78,11 @@ def _case_path(path: str | Path) -> Path:
     return result / "case.json" if result.is_dir() else result
 
 
-def load_case(path: str | Path) -> tuple[dict[str, Any], Any]:
+def load_case(
+    path: str | Path, *, minimum_features: int = 1
+) -> tuple[dict[str, Any], Any]:
+    if minimum_features < 1:
+        raise CaseError("minimum features must be at least 1")
     source = _case_path(path).resolve()
     try:
         with source.open("rb") as stream:
@@ -140,7 +144,11 @@ def load_case(path: str | Path) -> tuple[dict[str, Any], Any]:
     root = source.parent
 
     def read_input(entry, flavor):
-        document = load_document(_resolve(root, entry), expected_flavor=flavor)
+        document = load_document(
+            _resolve(root, entry),
+            expected_flavor=flavor,
+            minimum_features=minimum_features,
+        )
         if document.provenance["content_sha256"] != entry["sha256"]:
             raise CaseError(
                 "case input changed while being read or is not plain captured JSON"

@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from capagap.analysis import ComparisonError, compare_documents
+from capagap.batch import analyze_directory
 from capagap.cases import (
     CaseError,
     add_case_runs,
@@ -57,6 +58,19 @@ def _output(parser: argparse.ArgumentParser, *, html: bool = False) -> None:
 def register_commands(
     subcommands, add_report_arguments, run_argument, condition_argument
 ) -> None:
+    batch = subcommands.add_parser(
+        "batch", help="group a directory of capa results by sample SHA-256"
+    )
+    batch.add_argument("directory", type=Path)
+    batch.add_argument("--output", required=True, type=Path, metavar="NEW_DIRECTORY")
+    batch.add_argument("--recursive", action="store_true")
+    batch.add_argument(
+        "--format", choices=("html", "json", "markdown", "text"), default="html"
+    )
+    batch.add_argument("--ruleset-manifest", type=Path)
+    batch.add_argument("--include-library", action="store_true")
+    batch.add_argument("--minimum-features", type=int, default=1)
+    batch.add_argument("--strict", action="store_true")
     validate = subcommands.add_parser(
         "validate", help="inspect capa result quality before interpreting coverage"
     )
@@ -198,6 +212,23 @@ def _render_case(args, comparison) -> str:
 
 
 def run_workflow(args) -> int:
+    if args.command == "batch":
+        result = analyze_directory(
+            args.directory,
+            args.output,
+            recursive=args.recursive,
+            report_format=args.format,
+            ruleset_path=args.ruleset_manifest,
+            include_library=args.include_library,
+            minimum_features=args.minimum_features,
+            strict=args.strict,
+        )
+        summary = result["summary"]
+        print(
+            f"CapaGap batch: {summary['completed']} completed, {summary['failed']} failed, {summary['rejected_inputs']} rejected inputs"
+        )
+        print((args.output / "index.md").resolve())
+        return 4 if summary["failed"] or summary["rejected_inputs"] else 0
     if args.command == "validate":
         if args.minimum_features < 1:
             raise DocumentError("--minimum-features must be at least 1")

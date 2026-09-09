@@ -8,6 +8,7 @@ from pathlib import Path
 
 from capagap import __version__
 from capagap.analysis import ComparisonError, compare_documents
+from capagap.batch import BatchError
 from capagap.cases import CaseError
 from capagap.diagnostics import ValidationError
 from capagap.diff import DiffError
@@ -357,6 +358,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.command in {
+            "batch",
             "case",
             "validate",
             "diff",
@@ -522,6 +524,7 @@ def main(argv: list[str] | None = None) -> int:
         TriageError,
         CaseError,
         DiffError,
+        BatchError,
         OSError,
     ) as exc:
         print(f"capagap: error: {exc}", file=sys.stderr)
