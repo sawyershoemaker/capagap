@@ -356,7 +356,13 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--minimum-features must be at least 1")
 
     try:
-        if args.command in {"case", "validate", "diff", "contributions"}:
+        if args.command in {
+            "case",
+            "validate",
+            "diff",
+            "contributions",
+            "repeatability",
+        }:
             return run_workflow(args)
         if args.command == "manifest":
             manifest = build_ruleset_manifest(args.rules)

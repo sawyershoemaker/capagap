@@ -22,6 +22,7 @@ from capagap.models import (
     MatrixRun,
     RuleRecord,
 )
+from capagap.repeatability import analyze_repeatability
 
 STATUS_LABELS = {
     "never-observed": "Never observed",
@@ -478,6 +479,43 @@ def _contributions(comparison: MatrixComparison) -> str:
     )
 
 
+def _repeatability(comparison: MatrixComparison) -> str:
+    result = analyze_repeatability(comparison)
+    content = [f'<p class="section-intro">{_e(result["interpretation"])}</p>']
+    for group in result["groups"]:
+        settings = ", ".join(f"{k}={v}" for k, v in group["conditions"].items())
+        content.append(
+            f"<h3>{_e(settings)}</h3><p>{_e(', '.join(group['run_labels']))}: {group['run_count']} distinct documents</p>"
+        )
+        if not group["assessed"]:
+            content.append(
+                '<p class="muted">At least two distinct documents are required.</p>'
+            )
+            continue
+        counts = group["counts"]
+        content.append(
+            f"<p>{counts['intermittent']} intermittent · {counts['observed-in-all']} observed in all · {counts['never-observed']} never observed · {counts['source-unverified']} source-unverified</p>"
+        )
+        rows = "".join(
+            f'<tr><th scope="row">{_e(row["name"])}</th><td>{row["observed_count"]}/{row["run_count"]}</td><td>{_e(row["state"])}</td></tr>'
+            for row in group["capabilities"][:20]
+        )
+        content.append(
+            '<div class="horizontal-scroll" tabindex="0" role="region" aria-label="Repeatability table">'
+            '<table class="data-table"><caption class="sr-only">Run repeatability</caption>'
+            '<thead><tr><th scope="col">Capability</th><th scope="col">Observed</th><th scope="col">State</th></tr></thead>'
+            f"<tbody>{rows}</tbody></table></div>"
+        )
+        if len(group["capabilities"]) > 20 or group["omitted_capabilities"]:
+            content.append(
+                '<p class="muted">First 20 retained details shown, with intermittent observations first. Export JSON for more detail; omitted rows are counted explicitly.</p>'
+            )
+    content.extend(
+        f'<p class="evidence-note">{_e(warning)}</p>' for warning in result["warnings"]
+    )
+    return "".join(content)
+
+
 def _diagnostics(comparison: Comparison | MatrixComparison) -> str:
     issues = comparison_diagnostics(comparison)
     if not issues:
@@ -773,6 +811,9 @@ def _render(comparison: Comparison | MatrixComparison) -> str:
         sections = (
             _disclosure(
                 "run-contributions", "Run contributions", _contributions(comparison)
+            )
+            + _disclosure(
+                "run-repeatability", "Run repeatability", _repeatability(comparison)
             )
             + sections
         )

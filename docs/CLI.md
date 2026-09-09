@@ -177,6 +177,19 @@ Accepts matrix input and report options, including `--condition`, `--ruleset-man
 
 Only comparable static capabilities enter this calculation. The greedy representative set repeatedly chooses the run covering the most remaining capabilities, breaking ties by input order. It preserves the supplied union but is not guaranteed minimal. A run can be individually redundant while still being needed if another redundant run is removed. Do not delete traces based solely on this result.
 
+## repeatability
+
+```sh
+capagap repeatability static.json --run first=first.json --run repeat=repeat.json \
+  --condition first:network=off --condition repeat:network=off --format json
+```
+
+Groups runs by identical nonempty declared conditions and recorded capa version, extractor, format, architecture, and OS. Each run must declare every condition key used in the comparison and have a matching valid sample SHA-256. Incomplete context and restricted analyses are left unassessed. Byte-identical input documents count once, including when relabeled; distinct documents are not necessarily independent trials.
+
+Groups with at least two distinct inputs report per-capability observation counts, including intermittent matches. Missing or conflicting rule sources are labeled `source-unverified`, not classified as repeatable behavior. Counts describe observations under declared settings, not probabilities or causal effects. Undeclared settings and historical rule availability cannot be verified.
+
+Accepts text, Markdown, JSON, or HTML and the input options `--ruleset-manifest`, `--include-library`, `--allow-mismatch`, and `--minimum-features`. `--strict` stops with exit `4` before writing on input or grouping warnings; identical conditions are expected here, unlike a controlled-change matrix. JSON detail is bounded to 2,048 capability rows across groups; omitted counts are explicit and summary counts are complete. HTML shows up to 20 retained rows per group. Matrix JSON and HTML also include repeatability without changing their coverage denominator.
+
 ## triage
 
 Handoff generation creates a worksheet automatically. For an existing bundle:

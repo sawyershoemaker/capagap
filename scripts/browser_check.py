@@ -34,6 +34,14 @@ def prepare_reports(folder: Path) -> dict:
         "matrix": compare_matrix(
             static, [("baseline", dynamic), ("interactive", interactive)]
         ),
+        "repeatability": compare_matrix(
+            static,
+            [("first", dynamic), ("repeat", interactive)],
+            experiment_conditions=[
+                ("first", "network", "off"),
+                ("repeat", "network", "off"),
+            ],
+        ),
     }
     raw = json.loads((examples / "static.json").read_text(encoding="utf-8"))
     prototype = raw["rules"][HTTP]["matches"][0]
@@ -145,6 +153,7 @@ def run(folder: Path, *, channel: str | None = None, axe: Path | None = None) ->
             "matrix",
             "large-address-single",
             "large-address-matrix",
+            "repeatability",
         ):
             page.goto(base + name + ".html")
             with page.expect_download() as event:
@@ -173,6 +182,28 @@ def run(folder: Path, *, channel: str | None = None, axe: Path | None = None) ->
                 download.suggested_filename == expected_name,
             )
 
+        for width in (1440, 390):
+            page.set_viewport_size({"width": width, "height": 900})
+            page.goto(base + "repeatability.html")
+            disclosure = page.locator("#run-repeatability")
+            disclosure.locator("summary").focus()
+            page.keyboard.press("Enter")
+            check(
+                f"{width}px: repeatability keyboard disclosure",
+                disclosure.get_attribute("open") is not None,
+            )
+            check(
+                f"{width}px: repeatability counts",
+                "2 intermittent" in disclosure.inner_text()
+                and disclosure.locator("tbody tr").count() == 4,
+            )
+            check(
+                f"{width}px: repeatability fits",
+                page.evaluate("document.documentElement.scrollWidth === innerWidth"),
+            )
+            disclosure.scroll_into_view_if_needed()
+            page.screenshot(path=folder / f"repeatability-{width}.png")
+        page.set_viewport_size({"width": 1440, "height": 1000})
         page.goto(base + "matrix.html")
         check(
             "matrix starts with comparable findings",

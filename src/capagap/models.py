@@ -397,6 +397,7 @@ class MatrixComparison:
     def to_dict(self) -> dict[str, Any]:
         from capagap.contributions import analyze_contributions
         from capagap.diagnostics import comparison_diagnostics
+        from capagap.repeatability import analyze_repeatability
 
         return {
             "schema_version": 1,
@@ -418,6 +419,7 @@ class MatrixComparison:
             },
             "diagnostics": [item.to_dict() for item in comparison_diagnostics(self)],
             "run_contributions": analyze_contributions(self),
+            "repeatability": analyze_repeatability(self),
             "matrix": {
                 "confidence": self.confidence,
                 "sample_sha256": self.static.sample_sha256,

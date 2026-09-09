@@ -19,6 +19,7 @@ from capagap.cases import (
 from capagap.contributions import analyze_contributions, render_contributions
 from capagap.diagnostics import (
     Diagnostic,
+    ValidationError,
     render_validation,
     require_valid,
     validation_result,
@@ -39,6 +40,7 @@ from capagap.render import (
     render_matrix_text,
     render_text,
 )
+from capagap.repeatability import analyze_repeatability, render_repeatability
 
 
 def _output(parser: argparse.ArgumentParser, *, html: bool = False) -> None:
@@ -78,18 +80,31 @@ def register_commands(
     )
     _output(diff)
 
-    contributions = subcommands.add_parser(
-        "contributions",
-        help="measure unique capability coverage contributed by each run",
-    )
-    contributions.add_argument("static", type=Path)
-    contributions.add_argument(
-        "--run", required=True, action="append", type=run_argument, metavar="LABEL=PATH"
-    )
-    contributions.add_argument(
-        "--condition", action="append", default=[], type=condition_argument
-    )
-    add_report_arguments(contributions)
+    for name, help_text in (
+        ("contributions", "measure unique capability coverage contributed by each run"),
+        ("repeatability", "count observations across repeated declared conditions"),
+    ):
+        command = subcommands.add_parser(name, help=help_text)
+        command.add_argument("static", type=Path)
+        command.add_argument(
+            "--run",
+            required=True,
+            action="append",
+            type=run_argument,
+            metavar="LABEL=PATH",
+        )
+        command.add_argument(
+            "--condition", action="append", default=[], type=condition_argument
+        )
+        if name == "contributions":
+            add_report_arguments(command)
+        else:
+            _output(command, html=True)
+            command.add_argument("--strict", action="store_true")
+            command.add_argument("--minimum-features", type=int, default=1)
+            command.add_argument("--allow-mismatch", action="store_true")
+            command.add_argument("--include-library", action="store_true")
+            command.add_argument("--ruleset-manifest", type=Path)
 
     case = subcommands.add_parser(
         "case", help="create and use portable, hash-pinned analysis cases"
@@ -250,7 +265,7 @@ def run_workflow(args) -> int:
         )
         _write(args, result, render_diff, forbidden=(args.before, args.after))
         return 3 if args.fail_on_change and result["changed"] else 0
-    if args.command == "contributions":
+    if args.command in {"contributions", "repeatability"}:
         if args.minimum_features < 1:
             raise DocumentError("--minimum-features must be at least 1")
         manifest = (
@@ -279,9 +294,24 @@ def run_workflow(args) -> int:
             allow_mismatch=args.allow_mismatch,
             include_library=args.include_library,
             experiment_conditions=args.condition,
-            strict=args.strict,
+            strict=args.strict and args.command != "repeatability",
         )
-        result = analyze_contributions(comparison)
+        if args.command == "repeatability":
+            result = analyze_repeatability(comparison)
+            renderer = render_repeatability
+            if args.strict and (
+                result["warnings"]
+                or any(
+                    item["severity"] in ("warning", "error")
+                    for item in result["diagnostics"]
+                )
+            ):
+                raise ValidationError(
+                    "repeatability has input or grouping warnings; inspect without --strict"
+                )
+        else:
+            result = analyze_contributions(comparison)
+            renderer = render_contributions
         protected = (
             args.static,
             *(path for _, path in args.run),
@@ -294,7 +324,7 @@ def run_workflow(args) -> int:
                 lambda *_args, **_kwargs: render_matrix_html(comparison),
                 forbidden=protected,
             )
-        return _write(args, result, render_contributions, forbidden=protected)
+        return _write(args, result, renderer, forbidden=protected)
     if args.case_command == "init":
         destination = create_case(
             args.static,

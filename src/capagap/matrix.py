@@ -52,7 +52,7 @@ def _finding(
         score, score_reasons = score_rule(rule, evasion_context=evasion_context)
         score = min(100, score + 6)
         reasons = (
-            f"observed in {len(observed_in)}/{len(labels)} runs; environment or stimuli changed coverage",
+            f"observed in {len(observed_in)}/{len(labels)} runs; observations differ between runs",
         ) + score_reasons[1:]
     else:
         status = "observed-in-all"
