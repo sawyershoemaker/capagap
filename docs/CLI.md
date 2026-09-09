@@ -214,7 +214,7 @@ capagap repeatability static.json --run first=first.json --run repeat=repeat.jso
   --condition first:network=off --condition repeat:network=off --format json
 ```
 
-Groups runs by identical nonempty declared conditions and recorded capa version, extractor, format, architecture, and OS. Each run must declare every condition key used in the comparison and have a matching valid sample SHA-256. Incomplete context and restricted analyses are left unassessed. Byte-identical input documents count once, including when relabeled; distinct documents are not necessarily independent trials.
+Groups runs by identical nonempty declared conditions and recorded capa version, extractor, format, architecture, and OS. Each run must declare every condition key used in the comparison and have a matching valid sample SHA-256. Incomplete context and restricted analyses are left unassessed. Byte-identical input documents count at most once, including when relabeled; all copies with conflicting condition declarations are left unassessed. Distinct documents are not necessarily independent trials.
 
 Groups with at least two distinct inputs report per-capability observation counts, including intermittent matches. Missing or conflicting rule sources are labeled `source-unverified`, not classified as repeatable behavior. Counts describe observations under declared settings, not probabilities or causal effects. Undeclared settings and historical rule availability cannot be verified.
 

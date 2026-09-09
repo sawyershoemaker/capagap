@@ -20,15 +20,33 @@ def analyze_repeatability(comparison: MatrixComparison) -> dict[str, Any]:
     required_keys = {key for run in comparison.runs for key, _ in run.conditions}
     groups: dict[tuple, list] = {}
     seen: dict[str, str] = {}
+    declarations: dict[str, set[tuple]] = {}
+    for run in comparison.runs:
+        digest = run.comparison.dynamic.provenance.get("content_sha256")
+        if digest:
+            declarations.setdefault(digest, set()).add(run.conditions)
+    conflicting = {
+        digest for digest, conditions in declarations.items() if len(conditions) > 1
+    }
     duplicates, unassessed, warnings = [], [], []
     for run in comparison.runs:
         document = run.comparison.dynamic
         digest = document.provenance.get("content_sha256")
-        if digest in seen:
+        duplicate = digest in seen
+        if duplicate:
             duplicates.append({"label": run.label, "duplicate_of": seen[digest]})
-            continue
-        if digest:
+        elif digest:
             seen[digest] = run.label
+        if digest in conflicting:
+            unassessed.append(
+                {
+                    "label": run.label,
+                    "reason": "Copies of this input have conflicting condition declarations.",
+                }
+            )
+            continue
+        if duplicate:
+            continue
         reason = None
         if not run.conditions:
             reason = "No conditions declared."
@@ -54,7 +72,11 @@ def analyze_repeatability(comparison: MatrixComparison) -> dict[str, Any]:
         groups.setdefault((run.conditions, context), []).append(run)
     if duplicates:
         warnings.append(
-            "Byte-identical input documents are counted once, even under different labels or conditions."
+            "Byte-identical input documents are counted at most once, even under different labels."
+        )
+    if conflicting:
+        warnings.append(
+            "Copies with conflicting condition declarations are left unassessed."
         )
     if unassessed:
         warnings.append("Some runs cannot be assigned to a comparable condition group.")

@@ -50,6 +50,97 @@ class RepeatabilityTests(WorkflowTestCase):
         self.assertFalse(result["groups"][0]["assessed"])
         self.assertEqual(result["groups"][0]["capabilities"], [])
 
+    def test_conflicting_duplicates_are_unassessed_regardless_of_input_order(self):
+        runs = [("a", self.dynamic), ("b", self.dynamic), ("c", self.repeat)]
+        for ordered in (runs, list(reversed(runs))):
+            result = analyze_repeatability(
+                compare_matrix(
+                    self.static,
+                    ordered,
+                    experiment_conditions=[
+                        ("a", "network", "off"),
+                        ("b", "network", "on"),
+                        ("c", "network", "off"),
+                    ],
+                )
+            )
+            with self.subTest(labels=[label for label, _ in ordered]):
+                self.assertEqual(len(result["groups"]), 1)
+                self.assertEqual(result["groups"][0]["run_labels"], ["c"])
+                self.assertFalse(result["groups"][0]["assessed"])
+                self.assertEqual(
+                    {row["label"] for row in result["unassessed_runs"]}, {"a", "b"}
+                )
+                self.assertEqual(len(result["duplicates"]), 1)
+                self.assertIn("conflicting condition", render_repeatability(result))
+
+    def test_missing_declarations_on_duplicate_copies_are_not_assumed_equal(self):
+        runs = [("a", self.dynamic), ("b", self.dynamic), ("c", self.repeat)]
+        for ordered in (runs, list(reversed(runs))):
+            result = analyze_repeatability(
+                compare_matrix(
+                    self.static,
+                    ordered,
+                    experiment_conditions=[
+                        ("a", "network", "off"),
+                        ("c", "network", "off"),
+                    ],
+                )
+            )
+            with self.subTest(labels=[label for label, _ in ordered]):
+                self.assertFalse(any(group["assessed"] for group in result["groups"]))
+                self.assertEqual(
+                    {row["label"] for row in result["unassessed_runs"]}, {"a", "b"}
+                )
+
+    def test_equivalent_declarations_count_one_copy_without_losing_other_runs(self):
+        result = analyze_repeatability(
+            compare_matrix(
+                self.static,
+                [("a", self.dynamic), ("b", self.dynamic), ("c", self.repeat)],
+                experiment_conditions=[
+                    ("a", "network", "off"),
+                    ("a", "locale", "en"),
+                    ("b", "locale", "en"),
+                    ("b", "network", "off"),
+                    ("c", "network", "off"),
+                    ("c", "locale", "en"),
+                ],
+            )
+        )
+        self.assertEqual(result["unassessed_runs"], [])
+        self.assertEqual(result["duplicates"], [{"label": "b", "duplicate_of": "a"}])
+        self.assertEqual(result["groups"][0]["run_labels"], ["a", "c"])
+        self.assertTrue(result["groups"][0]["assessed"])
+
+    def test_cli_strict_stops_on_conflicting_duplicate_conditions(self):
+        args = [
+            "repeatability",
+            self.static_path,
+            "--run",
+            f"a={self.dynamic_path}",
+            "--run",
+            f"b={self.dynamic_path}",
+            "--run",
+            f"c={self.repeat_path}",
+            "--condition",
+            "a:network=off",
+            "--condition",
+            "b:network=on",
+            "--condition",
+            "c:network=off",
+            "--format",
+            "json",
+        ]
+        code, output, error = self.cli(*args)
+        self.assertEqual(code, 0, error)
+        self.assertEqual(len(json.loads(output)["unassessed_runs"]), 2)
+        destination = self.root / "conflicting.json"
+        code, output, error = self.cli(*args, "--strict", "--output", destination)
+        self.assertEqual(code, 4, error)
+        self.assertEqual(output, "")
+        self.assertFalse(destination.exists())
+
     def test_unknown_and_incomplete_conditions_are_not_pooled(self):
         for conditions in ([], [("a", "network", "off"), ("b", "locale", "en")]):
             result = analyze_repeatability(self.matrix(conditions=conditions))
