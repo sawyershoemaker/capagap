@@ -123,6 +123,7 @@ def smoke_install(wheel: Path, version: str) -> None:
                 "Installed demo resources or report generation are incomplete"
             )
         _run([command, "case", "verify", str(demo / "case"), "--strict"], cwd=scratch)
+        smoke_investigation_workflows(command, scratch, version)
 
         examples = ROOT / "examples"
         static = str(examples / "static.json")
@@ -325,6 +326,139 @@ def smoke_install(wheel: Path, version: str) -> None:
         )
         if not json.loads((scratch / "changed.json").read_text())["changed"]:
             raise ValueError("Installed saved-report diff missed changed evidence")
+
+
+def smoke_investigation_workflows(command: str, scratch: Path, version: str) -> None:
+    """Exercise the installed investigation workflow using only bundled inputs."""
+    demo = scratch / "capagap-demo"
+    case = demo / "case"
+    inputs = case / "inputs"
+    doctor = json.loads(
+        _run([command, "doctor", "--format", "json"], cwd=scratch, capture=True).stdout
+    )
+    if doctor["package"]["metadata_version"] != version or not Path(
+        doctor["command"]["expected"]
+    ).samefile(command):
+        raise ValueError(
+            "Installed doctor did not identify its own package and launcher"
+        )
+    batch = scratch / "batch"
+    _run(
+        [command, "batch", str(inputs), "--strict", "--output", str(batch)], cwd=scratch
+    )
+    index = json.loads((batch / "index.json").read_text(encoding="utf-8"))
+    if index["summary"]["completed"] != 1 or index["summary"]["failed"]:
+        raise ValueError("Installed batch did not group the bundled sample")
+    revision = scratch / "revision"
+    _run(
+        [
+            command,
+            "case",
+            "add-run",
+            str(case),
+            "--run",
+            f"repeat={inputs / 'run-001.json'}",
+            "--condition",
+            "repeat:interaction=off",
+            "--output",
+            str(revision),
+        ],
+        cwd=scratch,
+    )
+    history = json.loads(
+        _run(
+            [command, "case", "history", str(revision), "--format", "json"],
+            cwd=scratch,
+            capture=True,
+        ).stdout
+    )
+    if (
+        len(history["revisions"]) != 2
+        or len(history["revisions"][-1]["run_labels"]) != 3
+    ):
+        raise ValueError("Installed case revision did not preserve its history")
+    repeated = json.loads(
+        _run(
+            [
+                command,
+                "repeatability",
+                str(inputs / "static.json"),
+                "--run",
+                f"first={inputs / 'run-001.json'}",
+                "--run",
+                f"repeat={inputs / 'run-002.json'}",
+                "--condition",
+                "first:network=off",
+                "--condition",
+                "repeat:network=off",
+                "--strict",
+                "--format",
+                "json",
+            ],
+            cwd=scratch,
+            capture=True,
+        ).stdout
+    )
+    if repeated["groups"][0]["counts"]["intermittent"] != 2:
+        raise ValueError(
+            "Installed repeatability missed synthetic observation differences"
+        )
+    before, after = scratch / "review-before", scratch / "review-after"
+    for source, output in ((case, before), (revision, after)):
+        _run(
+            [
+                command,
+                "case",
+                "handoff",
+                str(source),
+                "--tool",
+                "json",
+                "--output",
+                str(output),
+            ],
+            cwd=scratch,
+        )
+    worksheet_path = before / "capagap-triage.json"
+    worksheet = json.loads(worksheet_path.read_text(encoding="utf-8"))
+    worksheet["reviews"][0].update(
+        disposition="confirmed", analyst_notes="Retain this note."
+    )
+    worksheet_path.write_text(json.dumps(worksheet), encoding="utf-8")
+    carried = scratch / "carried.json"
+    _run(
+        [
+            command,
+            "triage",
+            "carry",
+            str(before / "capagap-handoff.json"),
+            str(worksheet_path),
+            str(after / "capagap-handoff.json"),
+            "--output",
+            str(carried),
+        ],
+        cwd=scratch,
+    )
+    review = json.loads(carried.read_text(encoding="utf-8"))
+    if (
+        not review["migration"]["needs_review"]
+        or review["reviews"][0]["analyst_notes"] != "Retain this note."
+        or review["reviews"][0]["disposition"] != "unreviewed"
+    ):
+        raise ValueError(
+            "Installed review carry lost notes or retained a stale judgment"
+        )
+    _run(
+        [
+            command,
+            "triage",
+            "apply",
+            str(after / "capagap-handoff.json"),
+            str(carried),
+            "--output",
+            str(scratch / "carried-handoff.json"),
+        ],
+        cwd=scratch,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:

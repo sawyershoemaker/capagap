@@ -177,6 +177,16 @@ Accepts matrix input and report options, including `--condition`, `--ruleset-man
 
 Only comparable static capabilities enter this calculation. The greedy representative set repeatedly chooses the run covering the most remaining capabilities, breaking ties by input order. It preserves the supplied union but is not guaranteed minimal. A run can be individually redundant while still being needed if another redundant run is removed. Do not delete traces based solely on this result.
 
+## doctor
+
+```sh
+python -m capagap doctor --format json
+```
+
+Reports the running Python, loaded package version, installed entry-point metadata, expected launcher directory, and the `capagap` command found through PATH. User installs use the interpreter's user Scripts scheme. Missing launchers, version mismatches, and a command resolving elsewhere produce actionable diagnostics. Optional capa availability means only that its command was found on PATH; a missing capa command is not an installation failure.
+
+The check does not run discovered executables, access the network, install packages, or change environment settings. It cannot inspect shell aliases or verify the interpreter embedded in a launcher. Accepts text, Markdown, JSON, and `--output`. Default exit is `0` after producing diagnostics; `--strict` returns `4` on warnings after writing the report.
+
 ## demo
 
 ```sh
@@ -250,6 +260,6 @@ IDA and Binary Ninja imports replace comment lines that start with the exact mat
 | `0` | Command completed. |
 | `2` | Invalid arguments, input, comparison, or output path. |
 | `3` | A requested gap or diff check found changes after writing the report. |
-| `4` | Validation warnings, or strict mode stopped on quality warnings. |
+| `4` | Warnings or partial completion; see the command's diagnostics. |
 
 The `3` exit code is opt-in through `--fail-on-unobserved`, `--fail-on-never-observed`, or `diff --fail-on-change`. It is based on the complete comparison, not the displayed priority threshold. Ordinary reports may replace an existing output, but cannot replace their input documents.

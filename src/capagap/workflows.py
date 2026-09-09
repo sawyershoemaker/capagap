@@ -28,6 +28,7 @@ from capagap.diagnostics import (
     validation_result,
 )
 from capagap.diff import compare_reports, load_report, render_diff
+from capagap.doctor import inspect_installation, render_doctor
 from capagap.handoff import build_matrix_handoff, build_single_handoff, write_handoff
 from capagap.html_report import render_html, render_matrix_html
 from capagap.io import DocumentError, load_document
@@ -60,6 +61,15 @@ def _output(parser: argparse.ArgumentParser, *, html: bool = False) -> None:
 def register_commands(
     subcommands, add_report_arguments, run_argument, condition_argument
 ) -> None:
+    doctor = subcommands.add_parser(
+        "doctor", help="inspect interpreter, installation metadata, and command lookup"
+    )
+    _output(doctor)
+    doctor.add_argument(
+        "--strict",
+        action="store_true",
+        help="return exit code 4 when installation warnings are found",
+    )
     demo = subcommands.add_parser(
         "demo", help="create a bundled synthetic case and offline report"
     )
@@ -225,6 +235,10 @@ def _render_case(args, comparison) -> str:
 
 
 def run_workflow(args) -> int:
+    if args.command == "doctor":
+        result = inspect_installation()
+        _write(args, result, render_doctor)
+        return 4 if args.strict and not result["passed"] else 0
     if args.command == "demo":
         report = create_demo(args.output)
         print(f"CapaGap synthetic demo: {report.resolve()}")

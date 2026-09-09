@@ -368,6 +368,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.command in {
+            "doctor",
             "demo",
             "batch",
             "case",

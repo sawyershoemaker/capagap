@@ -23,7 +23,7 @@ Or install from a source checkout:
 python -m pip install .
 ```
 
-If your shell cannot find `capagap`, use `python -m capagap` instead.
+If your shell cannot find `capagap`, use `python -m capagap` instead. `python -m capagap doctor` checks the interpreter, installation, and command lookup without changing settings.
 
 ## Try it
 
