@@ -177,6 +177,14 @@ Accepts matrix input and report options, including `--condition`, `--ruleset-man
 
 Only comparable static capabilities enter this calculation. The greedy representative set repeatedly chooses the run covering the most remaining capabilities, breaking ties by input order. It preserves the supplied union but is not guaranteed minimal. A run can be individually redundant while still being needed if another redundant run is removed. Do not delete traces based solely on this result.
 
+## demo
+
+```sh
+capagap demo --output capagap-demo --open
+```
+
+Creates a portable synthetic case, `report.html`, and `report.json` using resources bundled in the installed package. No capa installation, sample, source checkout, or network access is needed. `--output` defaults to `capagap-demo` and must not exist. `--open` optionally launches the local report in the system browser; otherwise the command only prints its location. If browser launch fails, exit `4` leaves the completed report available to open manually.
+
 ## batch
 
 ```sh

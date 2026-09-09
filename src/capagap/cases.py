@@ -347,6 +347,32 @@ def _observations(comparison) -> tuple[set[str], set[str]]:
     )
 
 
+def relocate_comparison(comparison, staging: Path, destination: Path):
+    """Retarget captured input paths when publishing a staged case directory."""
+
+    def document(value):
+        return replace(value, path=destination / value.path.relative_to(staging))
+
+    static = document(comparison.static)
+    if isinstance(comparison, MatrixComparison):
+        return replace(
+            comparison,
+            static=static,
+            runs=tuple(
+                replace(
+                    run,
+                    comparison=replace(
+                        run.comparison,
+                        static=static,
+                        dynamic=document(run.comparison.dynamic),
+                    ),
+                )
+                for run in comparison.runs
+            ),
+        )
+    return replace(comparison, static=static, dynamic=document(comparison.dynamic))
+
+
 def add_case_runs(
     path: str | Path,
     runs: list[tuple[str, Path]],

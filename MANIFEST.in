@@ -9,3 +9,4 @@ recursive-include scripts *.py
 recursive-include tests *.py
 recursive-include src/capagap/importers *.tmpl
 recursive-include src/capagap/assets *.css *.js
+recursive-include src/capagap/demo_data *.json

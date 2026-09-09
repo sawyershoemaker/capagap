@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import webbrowser
 from pathlib import Path
 
 from capagap.analysis import ComparisonError, compare_documents
@@ -18,6 +19,7 @@ from capagap.cases import (
     render_case_history,
 )
 from capagap.contributions import analyze_contributions, render_contributions
+from capagap.demo import create_demo
 from capagap.diagnostics import (
     Diagnostic,
     ValidationError,
@@ -58,6 +60,17 @@ def _output(parser: argparse.ArgumentParser, *, html: bool = False) -> None:
 def register_commands(
     subcommands, add_report_arguments, run_argument, condition_argument
 ) -> None:
+    demo = subcommands.add_parser(
+        "demo", help="create a bundled synthetic case and offline report"
+    )
+    demo.add_argument(
+        "--output", type=Path, default=Path("capagap-demo"), metavar="NEW_DIRECTORY"
+    )
+    demo.add_argument(
+        "--open",
+        action="store_true",
+        help="open the generated local report in your browser",
+    )
     batch = subcommands.add_parser(
         "batch", help="group a directory of capa results by sample SHA-256"
     )
@@ -212,6 +225,22 @@ def _render_case(args, comparison) -> str:
 
 
 def run_workflow(args) -> int:
+    if args.command == "demo":
+        report = create_demo(args.output)
+        print(f"CapaGap synthetic demo: {report.resolve()}")
+        print(f"Portable case: {(report.parent / 'case').resolve()}")
+        if args.open:
+            try:
+                opened = webbrowser.open(report.resolve().as_uri())
+            except (webbrowser.Error, OSError):
+                opened = False
+            if not opened:
+                print(
+                    "capagap: report created; could not launch a browser. Open the report path above manually.",
+                    file=sys.stderr,
+                )
+                return 4
+        return 0
     if args.command == "batch":
         result = analyze_directory(
             args.directory,

@@ -44,7 +44,7 @@ where = ["src"]
 include = ["capagap*"]
 
 [tool.setuptools.package-data]
-capagap = ["importers/*.tmpl", "assets/*.css", "assets/*.js"]
+capagap = ["importers/*.tmpl", "assets/*.css", "assets/*.js", "demo_data/*.json"]
 
 [tool.ruff]
 target-version = "py310"

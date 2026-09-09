@@ -8,6 +8,8 @@ Rules without a supported dynamic scope are excluded from coverage. Results incl
 
 Python 3.10 or newer. No runtime dependencies.
 
+`main` includes unreleased commands; install from source to try them before the next PyPI release.
+
 Install from PyPI:
 
 ```sh
@@ -25,9 +27,13 @@ If your shell cannot find `capagap`, use `python -m capagap` instead.
 
 ## Try it
 
-The examples below use files from the [source repository](https://github.com/sawyershoemaker/capagap). Download the source and run these commands from its root directory; `pip install` does not copy the examples into your working directory.
+Generate and open a bundled synthetic report, without capa or a malware sample:
 
-The inputs are synthetic. You do not need capa or a malware sample to run them.
+```sh
+capagap demo --open
+```
+
+This creates `capagap-demo/` with a portable case and offline reports. The commands below use additional fixtures from the [source repository](https://github.com/sawyershoemaker/capagap); run them from its root directory.
 
 ```sh
 capagap compare examples/static.json examples/dynamic.json

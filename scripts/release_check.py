@@ -112,6 +112,18 @@ def smoke_install(wheel: Path, version: str) -> None:
         if metadata.stdout.strip() != version:
             raise ValueError("Installed package metadata version does not match")
 
+        _run([command, "demo"], cwd=scratch)
+        demo = scratch / "capagap-demo"
+        demo_report = json.loads((demo / "report.json").read_text(encoding="utf-8"))
+        if (
+            demo_report["summary"]["union_coverage"] != 0.75
+            or not (demo / "report.html").is_file()
+        ):
+            raise ValueError(
+                "Installed demo resources or report generation are incomplete"
+            )
+        _run([command, "case", "verify", str(demo / "case"), "--strict"], cwd=scratch)
+
         examples = ROOT / "examples"
         static = str(examples / "static.json")
         baseline = str(examples / "dynamic.json")

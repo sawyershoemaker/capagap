@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from capagap.analysis import ComparisonError
-from capagap.cases import CaseError, create_case, load_case
+from capagap.cases import CaseError, create_case, load_case, relocate_comparison
 from capagap.diagnostics import ValidationError, require_valid
 from capagap.html_report import render_html, render_matrix_html
 from capagap.io import DocumentError, load_document
@@ -91,30 +91,6 @@ def _render(comparison, report_format: str) -> str:
     if report_format == "markdown":
         return (render_matrix_markdown if matrix else render_markdown)(comparison)
     return (render_matrix_text if matrix else render_text)(comparison)
-
-
-def _published_paths(comparison, staging: Path, destination: Path):
-    def document(value):
-        return replace(value, path=destination / value.path.relative_to(staging))
-
-    static = document(comparison.static)
-    if isinstance(comparison, MatrixComparison):
-        return replace(
-            comparison,
-            static=static,
-            runs=tuple(
-                replace(
-                    run,
-                    comparison=replace(
-                        run.comparison,
-                        static=static,
-                        dynamic=document(run.comparison.dynamic),
-                    ),
-                )
-                for run in comparison.runs
-            ),
-        )
-    return replace(comparison, static=static, dynamic=document(comparison.dynamic))
 
 
 def _markdown(result: dict[str, Any]) -> str:
@@ -283,7 +259,7 @@ def analyze_directory(
                             if matrix
                             else comparison
                         )
-                    comparison = _published_paths(
+                    comparison = relocate_comparison(
                         comparison, sample_dir.resolve(), target.resolve() / sample_hash
                     )
                     payload = (

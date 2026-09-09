@@ -1,0 +1,489 @@
+{
+  "meta": {
+    "analysis": {
+      "arch": "amd64",
+      "extractor": "CapeExtractor",
+      "feature_counts": {
+        "file": 4,
+        "processes": [
+          {
+            "address": {
+              "type": "process",
+              "value": [
+                4,
+                1000
+              ]
+            },
+            "count": 5
+          },
+          {
+            "address": {
+              "type": "process",
+              "value": [
+                4,
+                1001
+              ]
+            },
+            "count": 5
+          },
+          {
+            "address": {
+              "type": "process",
+              "value": [
+                4,
+                1002
+              ]
+            },
+            "count": 5
+          }
+        ]
+      },
+      "format": "pe",
+      "layout": {
+        "processes": [
+          {
+            "address": {
+              "type": "process",
+              "value": [
+                4,
+                1000
+              ]
+            },
+            "matched_threads": [
+              {
+                "address": {
+                  "type": "thread",
+                  "value": [
+                    4,
+                    1000,
+                    2000
+                  ]
+                },
+                "matched_calls": [
+                  {
+                    "address": {
+                      "type": "call",
+                      "value": [
+                        4,
+                        1000,
+                        2000,
+                        1
+                      ]
+                    },
+                    "name": "HttpSendRequestA(synthetic arguments)"
+                  }
+                ]
+              }
+            ],
+            "name": "demo.exe"
+          },
+          {
+            "address": {
+              "type": "process",
+              "value": [
+                4,
+                1001
+              ]
+            },
+            "matched_threads": [
+              {
+                "address": {
+                  "type": "thread",
+                  "value": [
+                    4,
+                    1001,
+                    2000
+                  ]
+                },
+                "matched_calls": [
+                  {
+                    "address": {
+                      "type": "call",
+                      "value": [
+                        4,
+                        1001,
+                        2000,
+                        1
+                      ]
+                    },
+                    "name": "Process32FirstW(synthetic arguments)"
+                  }
+                ]
+              }
+            ],
+            "name": "demo.exe"
+          },
+          {
+            "address": {
+              "type": "process",
+              "value": [
+                4,
+                1002
+              ]
+            },
+            "matched_threads": [
+              {
+                "address": {
+                  "type": "thread",
+                  "value": [
+                    4,
+                    1002,
+                    2000
+                  ]
+                },
+                "matched_calls": [
+                  {
+                    "address": {
+                      "type": "call",
+                      "value": [
+                        4,
+                        1002,
+                        2000,
+                        1
+                      ]
+                    },
+                    "name": "CreateProcessW(synthetic arguments)"
+                  }
+                ]
+              }
+            ],
+            "name": "demo.exe"
+          }
+        ]
+      },
+      "os": "windows",
+      "rules": [
+        "capa-rules"
+      ]
+    },
+    "argv": [
+      "capa",
+      "cape-report.json",
+      "-j"
+    ],
+    "capagap": {
+      "synthetic": true
+    },
+    "flavor": "dynamic",
+    "sample": {
+      "md5": "11111111111111111111111111111111",
+      "path": "cape-report.json",
+      "sha1": "2222222222222222222222222222222222222222",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "timestamp": "2026-08-29T20:05:00Z",
+    "version": "9.4.0"
+  },
+  "rules": {
+    "check for sandbox process names": {
+      "matches": [
+        [
+          {
+            "type": "thread",
+            "value": [
+              4,
+              1001,
+              2000
+            ]
+          },
+          {
+            "captures": {},
+            "children": [
+              {
+                "captures": {},
+                "children": [],
+                "locations": [
+                  {
+                    "type": "call",
+                    "value": [
+                      4,
+                      1001,
+                      2000,
+                      1
+                    ]
+                  }
+                ],
+                "node": {
+                  "feature": {
+                    "api": "kernel32.Process32FirstW",
+                    "type": "api"
+                  },
+                  "type": "feature"
+                },
+                "success": true
+              },
+              {
+                "captures": {},
+                "children": [],
+                "locations": [],
+                "node": {
+                  "feature": {
+                    "string": "synthetic alternative, not matched",
+                    "type": "string"
+                  },
+                  "type": "feature"
+                },
+                "success": false
+              }
+            ],
+            "locations": [],
+            "node": {
+              "statement": {
+                "description": "Synthetic alternatives for inspecting rule evidence",
+                "type": "or"
+              },
+              "type": "statement"
+            },
+            "success": true
+          }
+        ]
+      ],
+      "meta": {
+        "attack": [
+          {
+            "id": "T1497.001",
+            "parts": [
+              "Defense Evasion",
+              "Virtualization/Sandbox Evasion",
+              "System Checks"
+            ],
+            "subtechnique": "System Checks",
+            "tactic": "Defense Evasion",
+            "technique": "Virtualization/Sandbox Evasion"
+          }
+        ],
+        "authors": [
+          "demo"
+        ],
+        "description": "",
+        "examples": [],
+        "is_subscope_rule": false,
+        "lib": false,
+        "maec": {},
+        "mbc": [
+          {
+            "behavior": "Virtual Machine Detection",
+            "id": "B0009",
+            "method": "",
+            "objective": "Anti-Behavioral Analysis",
+            "parts": [
+              "Anti-Behavioral Analysis",
+              "Virtual Machine Detection"
+            ]
+          }
+        ],
+        "name": "check for sandbox process names",
+        "namespace": "anti-analysis/anti-vm/vm-detection",
+        "references": [],
+        "scopes": {
+          "dynamic": "thread",
+          "static": "function"
+        }
+      },
+      "source": "rule: check for sandbox process names\nfeatures: shared-demo\n"
+    },
+    "communicate over HTTP": {
+      "matches": [
+        [
+          {
+            "type": "thread",
+            "value": [
+              4,
+              1000,
+              2000
+            ]
+          },
+          {
+            "captures": {},
+            "children": [
+              {
+                "captures": {},
+                "children": [],
+                "locations": [
+                  {
+                    "type": "call",
+                    "value": [
+                      4,
+                      1000,
+                      2000,
+                      1
+                    ]
+                  }
+                ],
+                "node": {
+                  "feature": {
+                    "api": "wininet.HttpSendRequestA",
+                    "type": "api"
+                  },
+                  "type": "feature"
+                },
+                "success": true
+              },
+              {
+                "captures": {},
+                "children": [],
+                "locations": [],
+                "node": {
+                  "feature": {
+                    "string": "synthetic alternative, not matched",
+                    "type": "string"
+                  },
+                  "type": "feature"
+                },
+                "success": false
+              }
+            ],
+            "locations": [],
+            "node": {
+              "statement": {
+                "description": "Synthetic alternatives for inspecting rule evidence",
+                "type": "or"
+              },
+              "type": "statement"
+            },
+            "success": true
+          }
+        ]
+      ],
+      "meta": {
+        "attack": [
+          {
+            "id": "T1071.001",
+            "parts": [
+              "Command and Control",
+              "Application Layer Protocol",
+              "Web Protocols"
+            ],
+            "subtechnique": "Web Protocols",
+            "tactic": "Command and Control",
+            "technique": "Application Layer Protocol"
+          }
+        ],
+        "authors": [
+          "demo"
+        ],
+        "description": "",
+        "examples": [],
+        "is_subscope_rule": false,
+        "lib": false,
+        "maec": {},
+        "mbc": [
+          {
+            "behavior": "HTTP Communication",
+            "id": "C0002",
+            "method": "",
+            "objective": "Communication",
+            "parts": [
+              "Communication",
+              "HTTP Communication"
+            ]
+          }
+        ],
+        "name": "communicate over HTTP",
+        "namespace": "communication/http",
+        "references": [],
+        "scopes": {
+          "dynamic": "thread",
+          "static": "function"
+        }
+      },
+      "source": "rule: communicate over HTTP\nfeatures: shared-demo\n"
+    },
+    "execute shell command": {
+      "matches": [
+        [
+          {
+            "type": "thread",
+            "value": [
+              4,
+              1002,
+              2000
+            ]
+          },
+          {
+            "captures": {},
+            "children": [
+              {
+                "captures": {},
+                "children": [],
+                "locations": [
+                  {
+                    "type": "call",
+                    "value": [
+                      4,
+                      1002,
+                      2000,
+                      1
+                    ]
+                  }
+                ],
+                "node": {
+                  "feature": {
+                    "api": "kernel32.CreateProcessW",
+                    "type": "api"
+                  },
+                  "type": "feature"
+                },
+                "success": true
+              },
+              {
+                "captures": {},
+                "children": [],
+                "locations": [],
+                "node": {
+                  "feature": {
+                    "string": "synthetic alternative, not matched",
+                    "type": "string"
+                  },
+                  "type": "feature"
+                },
+                "success": false
+              }
+            ],
+            "locations": [],
+            "node": {
+              "statement": {
+                "description": "Synthetic alternatives for inspecting rule evidence",
+                "type": "or"
+              },
+              "type": "statement"
+            },
+            "success": true
+          }
+        ]
+      ],
+      "meta": {
+        "attack": [
+          {
+            "id": "T1059.003",
+            "parts": [
+              "Execution",
+              "Command and Scripting Interpreter",
+              "Windows Command Shell"
+            ],
+            "subtechnique": "Windows Command Shell",
+            "tactic": "Execution",
+            "technique": "Command and Scripting Interpreter"
+          }
+        ],
+        "authors": [
+          "demo"
+        ],
+        "description": "",
+        "examples": [],
+        "is_subscope_rule": false,
+        "lib": false,
+        "maec": {},
+        "mbc": [],
+        "name": "execute shell command",
+        "namespace": "load-code/execute",
+        "references": [],
+        "scopes": {
+          "dynamic": "process",
+          "static": "function"
+        }
+      },
+      "source": "rule: execute shell command\nfeatures: dynamic-demo\n"
+    }
+  }
+}
