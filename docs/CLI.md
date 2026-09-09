@@ -212,11 +212,22 @@ capagap triage report HANDOFF WORKSHEET --format markdown --output reports/revie
 capagap triage apply HANDOFF WORKSHEET --output reports/reviewed-handoff.json
 ```
 
-Each review contains a stable finding ID, disposition, analyst notes, evidence, reviewer, and review date. The text fields are free-form. Do not change the finding ID or `handoff_identity` field.
+Each review contains a stable finding ID, disposition, analyst notes, evidence, reviewer, and review date. The text fields are free-form. Do not change the finding ID, `handoff_identity`, `handoff_context`, or per-review `basis` fields.
 
 Accepted dispositions: `unreviewed`, `confirmed`, `likely`, `benign`, `false-positive`, `needs-data`, and `deferred`. CapaGap records these as analyst judgments; it does not verify them.
 
-The worksheet identity is a hash of the sample SHA-256 and sorted finding IDs. A mismatch stops `report` or `apply`. This is an accidental-mixup check, not a signature or a complete record of run provenance.
+The worksheet identity hashes the sample SHA-256 and sorted finding IDs. New worksheets (schema 2) additionally bind retained evidence, observations, and input context, including original input-content digests. Changed evidence or context stops `report` and `apply`, even if finding IDs are unchanged. Legacy schema-1 worksheets remain readable with their original, weaker identity check. Neither format authenticates the analyst.
+
+Move reviews to a later case's handoff:
+
+```sh
+capagap triage carry before-handoff.json before-triage.json after-handoff.json \
+  --output after-triage.json
+```
+
+Unchanged, verifiable reviews retain their dispositions. Changed rules, evidence, observations, or input context preserve notes and evidence text but reset the disposition to `unreviewed` and clear the reviewer/date. The worksheet's `migration` record retains the prior judgment and reasons for reassessment. Legacy or incomplete review bases also require reassessment. New findings start unreviewed; removed findings' reviews are retained in the migration record, not interpreted as resolved. Names are used only to recover notes across changed rule IDs, never to approve a judgment.
+
+Carry requires the same valid sample SHA-256 and refuses duplicate rule names. The output cannot overwrite any of its three inputs, even with `--force`; preserve earlier worksheets for the complete review history. After reviewing the new evidence, edit the disposition and reviewer/date, then use `triage apply` normally. `triage report` includes the number still awaiting reassessment. Moving files or editing case names/notes alone does not invalidate a review; changed input bytes do.
 
 Partial worksheets are accepted. An omitted finding keeps its previously applied review, or counts as `unreviewed` if it has none. `report` and `apply` use the same rules and include every handoff finding in their totals. Unknown finding IDs, duplicate JSON keys, and malformed review fields are errors.
 

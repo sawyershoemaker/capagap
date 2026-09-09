@@ -71,17 +71,17 @@ class InputErrorTests(WorkflowTestCase):
         for payload, loader, error_type in (
             (self.bundle, load_handoff, TriageError),
             (self.worksheet, load_triage, TriageError),
+            ({**self.worksheet, "schema_version": 1}, load_triage, TriageError),
             (manifest, load_ruleset_manifest, ManifestError),
         ):
+            version_field = f'"schema_version": {payload["schema_version"]}'
             for raw in (
                 b"\xff",
                 json.dumps(payload)
-                .replace(
-                    '"schema_version": 1', '"schema_version": 1, "schema_version": 1'
-                )
+                .replace(version_field, version_field + ", " + version_field, 1)
                 .encode(),
                 json.dumps(payload)
-                .replace('"schema_version": 1', '"schema_version": NaN')
+                .replace(version_field, '"schema_version": NaN', 1)
                 .encode(),
             ):
                 with self.subTest(loader=loader.__name__, raw=raw[:20]):

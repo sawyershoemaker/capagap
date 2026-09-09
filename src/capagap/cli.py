@@ -40,6 +40,7 @@ from capagap.triage import (
     TriageError,
     apply_triage,
     build_triage_worksheet,
+    carry_triage,
     load_handoff,
     load_triage,
     render_triage_report,
@@ -167,6 +168,15 @@ def _parser() -> argparse.ArgumentParser:
     triage_apply.add_argument("worksheet", type=Path)
     triage_apply.add_argument("--output", required=True, type=Path)
     triage_apply.add_argument("--force", action="store_true")
+
+    triage_carry = triage_commands.add_parser(
+        "carry", help="carry reviews into a later handoff, flagging changed evidence"
+    )
+    triage_carry.add_argument("handoff", type=Path, help="original handoff")
+    triage_carry.add_argument("worksheet", type=Path)
+    triage_carry.add_argument("after", type=Path, help="new handoff")
+    triage_carry.add_argument("--output", required=True, type=Path)
+    triage_carry.add_argument("--force", action="store_true")
 
     compare = subcommands.add_parser(
         "compare", help="compare static and dynamic capa result documents"
@@ -387,6 +397,20 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"CapaGap triage worksheet: {destination.resolve()}")
                 return 0
             worksheet = load_triage(args.worksheet)
+            if args.triage_command == "carry":
+                result = carry_triage(bundle, worksheet, load_handoff(args.after))
+                destination = write_json(
+                    result,
+                    args.output,
+                    force=args.force,
+                    forbidden=(args.handoff, args.worksheet, args.after),
+                )
+                migration = result["migration"]
+                print(
+                    f"CapaGap review carry: {len(migration['retained'])} retained, {len(migration['needs_review'])} awaiting reassessment, {len(migration['new'])} new, {len(migration['removed_reviews'])} removed"
+                )
+                print(destination.resolve())
+                return 0
             if args.triage_command == "report":
                 report = render_triage_report(
                     bundle, worksheet, markdown=args.format == "markdown"

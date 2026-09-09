@@ -81,7 +81,9 @@ Evidence hotspots group findings at the same exact RVA. They are sorted by findi
 
 ## Analyst review
 
-Finding IDs are derived from the rule name and source digest. A separate triage worksheet holds analyst dispositions and notes. Its identity hashes the sample SHA-256 and sorted finding IDs to catch accidental mismatches; it is not a digital signature or a complete case identity.
+Finding IDs are derived from the rule name and source digest. A separate triage worksheet holds analyst dispositions and notes. Its identity hashes the sample SHA-256 and sorted finding IDs to catch accidental mismatches. Schema-2 worksheets also bind the retained evidence, observations, and analysis provenance, including input-content hashes. Paths, generator versions, and editable case names/notes do not enter the review basis. Neither identity is a digital signature.
+
+Review carry compares rule, evidence, observation, and context fingerprints. A changed or unverifiable basis resets the disposition to unreviewed and retains the previous judgment in a migration record. Matching a rule name is enough to recover notes, not to retain a judgment. Removed findings are archived for that migration without claiming that the underlying behavior was resolved.
 
 Applying a worksheet creates a reviewed handoff. IDA and Binary Ninja replace comment lines carrying the corresponding CapaGap marker. Ghidra updates only the Analysis bookmark in the CapaGap category at each location.
 
