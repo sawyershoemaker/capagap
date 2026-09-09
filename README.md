@@ -8,8 +8,6 @@ Rules without a supported dynamic scope are excluded from coverage. Results incl
 
 Python 3.10 or newer. No runtime dependencies.
 
-`main` includes unreleased commands; install from source to try them before the next PyPI release.
-
 Install from PyPI:
 
 ```sh
